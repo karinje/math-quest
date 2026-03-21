@@ -1,6 +1,7 @@
 // ============================================================
 // MATH QUEST RPG — Game Engine
 // ============================================================
+(function() {
 'use strict';
 
 const { checkAnswer, buildExplanation, DIAGNOSTIC_BANK, ALL_PROBLEMS,
@@ -1373,3 +1374,4 @@ function bindAllButtons() {
 // BOOT
 // ═════════════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', init);
+})();
