@@ -442,5 +442,12 @@
 <script src="problems.js"></script>
 <script src="game.js"></script>
 
+<!-- Error catcher — shows any JS crash visibly on screen -->
+<script>
+window.addEventListener('error', function(e) {
+  document.body.innerHTML += '<div style="position:fixed;top:20px;left:20px;right:20px;background:#400;color:#ff8;font-family:monospace;font-size:13px;padding:20px;border:2px solid red;z-index:9999;white-space:pre-wrap;">JS ERROR: ' + e.message + '\nFile: ' + e.filename + '\nLine: ' + e.lineno + '</div>';
+});
+</script>
+
 </body>
 </html>
