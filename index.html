@@ -102,6 +102,9 @@
     </div>
     <div class="hint-box" id="diag-hint"></div>
     <div id="diag-feedback" style="text-align:center;font-family:var(--pixel);font-size:10px;margin-top:10px;min-height:24px;"></div>
+    <div style="text-align:center;margin-top:8px;">
+      <button class="btn" id="diag-teach-btn" style="font-size:8px;border-color:var(--purple);color:var(--purple);">📖 HOW DO I SOLVE THIS?</button>
+    </div>
   </div>
 
   <button class="btn" id="diag-skip-btn" style="font-size:7px;color:var(--grey)">skip (counts as wrong)</button>
@@ -260,6 +263,7 @@
       <button class="btn" id="use-hint-btn" style="font-size:8px;">💡 HINT (<span id="hint-count">3</span>)</button>
       <button class="btn" id="use-potion-btn" style="font-size:8px;">🧪 POTION (<span id="potion-count">0</span>)</button>
       <button class="btn" id="use-skip-btn" style="font-size:8px;color:var(--grey);">⚡ SKIP (<span id="skip-count">1</span>)</button>
+      <button class="btn" id="use-teach-btn" style="font-size:8px;border-color:var(--purple);color:var(--purple);">📖 HOW DO I SOLVE THIS?</button>
     </div>
   </div>
 </div>
@@ -268,7 +272,7 @@
      SCREEN: Explanation
 ───────────────────────────────────────────────────────────── -->
 <div class="screen" id="screen-explain">
-  <div class="explain-header">❌ NOT QUITE — LET'S WORK THROUGH IT</div>
+  <div class="explain-header" id="explain-header">❌ NOT QUITE — LET'S WORK THROUGH IT</div>
 
   <div class="explain-container" id="explain-content">
     <!-- Populated by buildExplanation() -->
@@ -350,6 +354,9 @@
       <button class="btn primary" id="minitest-submit-btn">CHECK ↵</button>
     </div>
     <div id="minitest-feedback" style="text-align:center;font-family:var(--pixel);font-size:10px;margin-top:10px;min-height:24px;"></div>
+    <div style="text-align:center;margin-top:8px;">
+      <button class="btn" id="minitest-teach-btn" style="font-size:8px;border-color:var(--purple);color:var(--purple);">📖 HOW DO I SOLVE THIS?</button>
+    </div>
   </div>
 
   <!-- Results panel (shown after test) -->

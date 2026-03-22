@@ -566,8 +566,8 @@ function submitBattleAnswer(userInput) {
     el('battle-answer-input').classList.add('shake');
     setTimeout(() => el('battle-answer-input').classList.remove('shake'), 450);
 
-    // Show explanation
-    setTimeout(() => showExplanation(p), 500);
+    // Show explanation after wrong answer
+    setTimeout(() => showExplanation(p, 'battle', false), 500);
     return;
   }
 
@@ -693,11 +693,23 @@ function unlockNextDungeon(currentId) {
 // ═════════════════════════════════════════════════════════════
 // EXPLANATION SCREEN
 // ═════════════════════════════════════════════════════════════
-function showExplanation(problem) {
+let explainCalledFrom = 'battle'; // tracks which screen to return to
+
+function showExplanation(problem, calledFrom, proactive) {
+  explainCalledFrom = calledFrom || 'battle';
   const html = buildExplanation(problem);
   el('explain-content').innerHTML = html;
   el('explain-more-content').style.display = 'none';
   el('explain-more-content').innerHTML = buildMoreExplanation(problem);
+
+  // Header changes based on whether student chose to learn vs got it wrong
+  el('explain-header').textContent = proactive
+    ? '📖 HERE\'S HOW TO SOLVE THIS'
+    : '❌ NOT QUITE — LET\'S WORK THROUGH IT';
+  el('explain-header').style.color = proactive ? 'var(--purple)' : 'var(--red)';
+
+  el('explain-retry-btn').textContent = proactive ? '✅ GOT IT — LET ME TRY NOW' : '✅ GOT IT — TRY AGAIN';
+
   showScreen('explain');
 }
 
@@ -1274,6 +1286,11 @@ function bindAllButtons() {
     saveGame();
   });
 
+  el('use-teach-btn').addEventListener('click', () => {
+    if (!BS.pendingProblem) return;
+    showExplanation(BS.pendingProblem, 'battle', true);
+  });
+
   el('use-skip-btn').addEventListener('click', () => {
     if (G.spells.skip <= 0 || BS.skipsThisDungeon >= 1) {
       toast('No skips left!'); return;
@@ -1290,15 +1307,40 @@ function bindAllButtons() {
 
   // ── Explanation ───────────────────────────────────────────
   el('explain-retry-btn').addEventListener('click', () => {
-    showScreen('battle');
-    // Re-show same problem
-    if (BS.pendingProblem) renderBattleProblem(BS.pendingProblem);
-    el('battle-answer-input').value = '';
-    el('battle-answer-input').focus();
+    if (explainCalledFrom === 'diagnostic') {
+      showScreen('diagnostic');
+      el('diag-answer-input').value = '';
+      el('diag-answer-input').focus();
+    } else if (explainCalledFrom === 'minitest') {
+      showScreen('minitest');
+      el('minitest-answer-input').value = '';
+      el('minitest-answer-input').focus();
+      startMiniTestTimer(); // resume timer
+    } else {
+      showScreen('battle');
+      if (BS.pendingProblem) renderBattleProblem(BS.pendingProblem);
+      el('battle-answer-input').value = '';
+      el('battle-answer-input').focus();
+    }
   });
   el('explain-more-btn').addEventListener('click', () => {
     const mc = el('explain-more-content');
     mc.style.display = mc.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // ── Diagnostic teach button ───────────────────────────────
+  el('diag-teach-btn').addEventListener('click', () => {
+    const q = DS.questions[DS.current];
+    if (q) showExplanation(q, 'diagnostic', true);
+  });
+
+  // ── Mini-test teach button ────────────────────────────────
+  el('minitest-teach-btn').addEventListener('click', () => {
+    const q = MT.questions[MT.current];
+    if (q) {
+      clearInterval(MT.timerInterval); // pause timer while reading
+      showExplanation(q, 'minitest', true);
+    }
   });
 
   // ── Level Clear ───────────────────────────────────────────
