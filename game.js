@@ -954,18 +954,18 @@ function updatePlayer(dt) {
 
   // Jumping
   if (keys.up && P.onGround && !jumpConsumed) {
-    P.vy = -17;  // stronger jump
+    P.vy = -22;  // high jump — reaches all platforms
     jumpConsumed = true;
-    spawnParticles(P.x + P.w/2, P.y + P.h, '#aaaaff', 4);
+    spawnParticles(P.x + P.w/2, P.y + P.h, '#aaaaff', 6);
   }
 
-  // Gravity
-  P.vy += 0.55 * dt;
-  if (P.vy > 16) P.vy = 16;
+  // Gravity — scale both gravity and position by dt for frame-rate independence
+  P.vy += 0.5 * dt;
+  if (P.vy > 18) P.vy = 18;
 
-  // Move
+  // Move — P.y must also be dt-scaled so jump height is consistent at all frame rates
   P.x += P.vx;
-  P.y += P.vy;
+  P.y += P.vy * dt;
 
   // Keep in world bounds
   if (P.x < 0) P.x = 0;
