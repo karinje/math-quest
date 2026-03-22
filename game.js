@@ -217,8 +217,10 @@ function init() {
 
 function updateTitleScreen() {
   if (!G) return;
-  const hasSave = G.diagnosticDone || G.dungeonsCompleted.length > 0;
-  el('continue-btn').style.display = hasSave ? '' : 'none';
+  // Show CONTINUE whenever a save exists — the handler already routes correctly
+  // (no diagnostic done → starts diagnostic, diagnostic done → shows map)
+  el('continue-btn').style.display = '';
+  el('continue-btn').textContent = G.diagnosticDone ? '▶ CONTINUE' : '▶ START ADVENTURE';
 
   if (G.streak.current >= 2) {
     el('streak-display').classList.remove('hidden');

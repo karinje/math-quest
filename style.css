@@ -638,6 +638,60 @@ body::before {
 }
 .area-sum { font-family: var(--pixel); font-size: 8px; color: var(--green); margin-top: 8px; text-align: center; }
 
+/* Step-by-step division explanation */
+.explain-steps { display: flex; flex-direction: column; gap: 12px; }
+
+.step-intro {
+  background: var(--bg2);
+  border-left: 4px solid var(--accent);
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--white);
+  line-height: 1.7;
+}
+.step-block {
+  background: var(--panel2);
+  border: 2px solid var(--border);
+  border-radius: 2px;
+  padding: 12px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.step-num {
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: var(--accent2);
+  white-space: nowrap;
+  padding-top: 3px;
+  min-width: 50px;
+}
+.step-body {
+  font-size: 14px;
+  color: var(--white);
+  line-height: 1.9;
+}
+.step-body strong { color: var(--accent2); }
+.step-note {
+  display: block;
+  background: rgba(240,208,96,0.1);
+  border-left: 3px solid var(--yellow);
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--yellow);
+  line-height: 1.6;
+}
+.step-result {
+  font-family: var(--pixel);
+  font-size: 9px;
+  color: var(--green);
+  text-align: center;
+  padding: 12px;
+  border: 2px solid var(--green);
+  background: rgba(68,212,121,0.06);
+}
+
 .explain-more-content {
   background: var(--bg2);
   border-left: 4px solid var(--purple);

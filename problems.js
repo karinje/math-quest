@@ -1054,8 +1054,8 @@ function buildFractionExplanation(p) {
     // Long division steps
     const actualNum = d.whole ? d.whole * den + num : num;
     const actualDen = den;
-    html += `<div class="explain-method">METHOD: Divide ${actualNum} ÷ ${actualDen}</div>`;
-    html += buildLongDivisionVisual(actualNum, actualDen, true);
+    html += `<div class="explain-method">METHOD: Divide ${actualNum} ÷ ${actualDen} step by step</div>`;
+    html += buildLongDivisionSteps(actualNum, actualDen);
   }
 
   html += `<div class="explain-answer">Answer: <strong>${p.answer}</strong></div>`;
@@ -1067,12 +1067,19 @@ function buildFractionExplanation(p) {
 function buildDivisionExplanation(p) {
   const d = p.display;
   let html = `<div class="explain-block">`;
-  html += `<div class="explain-title">Long Division: ${d ? d.dividend+" ÷ "+d.divisor : p.question}</div>`;
-  html += `<div class="explain-mnemonic">Remember: <em>Does McDonald's Serve Burgers Daily?</em><br>
-    Divide → Multiply → Subtract → Bring down → (repeat)</div>`;
+  html += `<div class="explain-title">Long Division: ${d ? d.dividend + " ÷ " + d.divisor : p.question}</div>`;
+
+  html += `<div class="explain-mnemonic">
+    The 4-step cycle (repeat until done):<br>
+    <strong>① Divide</strong> — how many times does ${d ? d.divisor : "the divisor"} fit?<br>
+    <strong>② Multiply</strong> — write the product below<br>
+    <strong>③ Subtract</strong> — find what's left over<br>
+    <strong>④ Bring down</strong> — pull the next digit down<br>
+    Then repeat from ① with the new number.
+  </div>`;
 
   if (d && d.type === "division") {
-    html += buildLongDivisionVisual(d.dividend, d.divisor, false);
+    html += buildLongDivisionSteps(d.dividend, d.divisor);
   }
 
   html += `<div class="explain-answer">Answer: <strong>${p.answer}</strong></div>`;
@@ -1129,46 +1136,90 @@ function buildMultiplyExplanation(p) {
   return html;
 }
 
-function buildLongDivisionVisual(dividend, divisor, isDecimal) {
-  // Generate step-by-step division steps as HTML
+function buildLongDivisionSteps(dividend, divisor) {
+  // Build a numbered plain-English step-by-step walkthrough
+  const divStr = String(dividend).replace(".", "");
+  const hasDecimalInDividend = String(dividend).includes(".");
+  const divisorNum = Number(divisor);
+
   let steps = [];
-  let n = String(dividend).replace(".", "");
-  let decimalPos = String(dividend).includes(".") ? String(dividend).indexOf(".") : n.length;
-
   let current = 0;
-  let quotientStr = "";
-  let extended = false;
+  let quotientDigits = [];
+  let addedDecimal = false;
+  let maxIter = divStr.length + 4;
 
-  // Work through digits
-  for (let i = 0; i < Math.min(n.length + 4, 10); i++) {
-    if (i < n.length) {
-      current = current * 10 + parseInt(n[i]);
+  for (let i = 0; i < maxIter; i++) {
+    let broughtDown;
+    if (i < divStr.length) {
+      current = current * 10 + parseInt(divStr[i]);
+      broughtDown = divStr[i];
     } else {
       if (current === 0) break;
       current = current * 10;
-      if (!extended) {
-        quotientStr += ".";
-        extended = true;
+      broughtDown = "0";
+      if (!addedDecimal) {
+        quotientDigits.push(".");
+        addedDecimal = true;
       }
     }
-    const q = Math.floor(current / divisor);
-    const remainder = current - q * divisor;
-    steps.push({ digit: i < n.length ? n[i] : "0", brings: current, q, mult: q * divisor, rem: remainder });
-    quotientStr += q;
+
+    const q = Math.floor(current / divisorNum);
+    const product = q * divisorNum;
+    const remainder = current - product;
+    quotientDigits.push(String(q));
+    steps.push({ i, current, broughtDown, q, product, remainder, addedDecimal: addedDecimal && i >= divStr.length });
     current = remainder;
-    if (remainder === 0 && i >= n.length - 1) break;
+    if (remainder === 0 && i >= divStr.length - 1) break;
   }
 
-  let html = `<div class="long-div-visual"><table class="long-div-table">`;
-  html += `<tr><td class="ld-divisor">${divisor}</td><td class="ld-bar">│</td><td class="ld-dividend">${dividend}</td></tr>`;
+  const quotient = quotientDigits.join("");
+  let html = `<div class="explain-steps">`;
+
+  // Opening context
+  html += `<div class="step-intro">We want to divide <strong>${dividend}</strong> by <strong>${divisor}</strong>.<br>
+    We'll work through it one digit at a time, left to right.</div>`;
+
   steps.forEach((s, idx) => {
-    html += `<tr class="ld-step">`;
-    html += `<td></td><td></td>`;
-    html += `<td><span class="ld-q">↓ ${s.q}</span><br><span class="ld-mult">- ${s.mult}</span><br><span class="ld-rem">  ${s.rem}</span></td>`;
-    html += `</tr>`;
+    const stepNum = idx + 1;
+    let explanation = "";
+
+    if (s.addedDecimal) {
+      explanation += `<span class="step-note">⚠️ We've used all the digits of ${dividend} but still have a remainder of ${s.current / 10}.
+        We write a <strong>decimal point</strong> in our answer and add a zero — now we have <strong>${s.current}</strong> to work with.</span><br>`;
+    } else if (idx === 0 && s.current < divisorNum) {
+      explanation += `<span class="step-note">The first digit (${s.broughtDown}) is smaller than ${divisor}, so ${divisor} doesn't fit yet.
+        We look at the first TWO digits together: <strong>${s.current}</strong>.</span><br>`;
+    }
+
+    if (s.q === 0) {
+      explanation += `<strong>① Divide:</strong> Does ${divisorNum} go into ${s.current}?
+        No — ${s.current} is less than ${divisorNum}. So we write <strong>0</strong> in the answer.<br>`;
+    } else {
+      explanation += `<strong>① Divide:</strong> How many times does ${divisorNum} go into ${s.current}?
+        <strong>${s.q} times</strong> (because ${divisorNum} × ${s.q} = ${s.product}, which fits inside ${s.current}).<br>`;
+    }
+
+    explanation += `<strong>② Multiply:</strong> ${divisorNum} × ${s.q} = <strong>${s.product}</strong>. Write ${s.product} below ${s.current}.<br>`;
+    explanation += `<strong>③ Subtract:</strong> ${s.current} − ${s.product} = <strong>${s.remainder}</strong>. This is our remainder.<br>`;
+
+    if (idx < steps.length - 1 && !steps[idx + 1].addedDecimal) {
+      explanation += `<strong>④ Bring down:</strong> Pull down the next digit (<strong>${divStr[s.i + 1] || "0"}</strong>).
+        Now we work with <strong>${steps[idx + 1].current}</strong>.<br>`;
+    } else if (idx < steps.length - 1) {
+      explanation += `<strong>④ Bring down:</strong> No more digits — add a <strong>decimal point</strong> and bring down a <strong>0</strong>. Now we have ${steps[idx+1].current}.<br>`;
+    } else if (s.remainder === 0) {
+      explanation += `<strong>✅ Done!</strong> Remainder is 0 — the division is exact.`;
+    } else {
+      explanation += `<strong>④ Remainder:</strong> We have ${s.remainder} left over. That's our final remainder.`;
+    }
+
+    html += `<div class="step-block">
+      <div class="step-num">Step ${stepNum}</div>
+      <div class="step-body">${explanation}</div>
+    </div>`;
   });
-  html += `</table>`;
-  html += `<div class="ld-answer">Quotient: <strong>${quotientStr}</strong></div>`;
+
+  html += `<div class="step-result">📝 Reading the answer digits we wrote: <strong>${quotient}</strong></div>`;
   html += `</div>`;
   return html;
 }
