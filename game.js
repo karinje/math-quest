@@ -47,6 +47,290 @@ function defaultSave(name) {
 let G = null;
 const XP_TABLE = [0,500,1200,2200,3500,5200,7200,9500,12500,16000,20000];
 
+// ── Monster type registry ───────────────────────────────────
+// Each entry: { draw(ctx, w, h, animTick), color, size }
+const MONSTER_TYPES = {
+  // ── 1-hit regulars ─────────────────────────────────────
+  slime: {
+    color:'#4aaa4a', size:{w:36,h:32},
+    draw(c,w,h,t) {
+      const sq = Math.sin(t*0.06)*3;
+      c.fillStyle='#4aaa4a'; c.beginPath();
+      c.ellipse(0,2+sq,w/2,h/2-sq,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#6acc6a'; c.beginPath();
+      c.ellipse(-4,-2,6,5,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#fff'; c.beginPath();
+      c.arc(-8,-2,5,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(6,-2,5,0,Math.PI*2); c.fill();
+      c.fillStyle='#111'; c.beginPath();
+      c.arc(-7,-1,2.5,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(7,-1,2.5,0,Math.PI*2); c.fill();
+    }
+  },
+  bat: {
+    color:'#6a3a9a', size:{w:44,h:28},
+    draw(c,w,h,t) {
+      const flap = Math.sin(t*0.12)*12;
+      c.fillStyle='#4a2a6a';
+      c.beginPath(); c.moveTo(0,-2); c.lineTo(-22,-4-flap); c.lineTo(-14,8); c.fill();
+      c.beginPath(); c.moveTo(0,-2); c.lineTo(22,-4-flap);  c.lineTo(14,8);  c.fill();
+      c.fillStyle='#7a4aaa'; c.beginPath(); c.ellipse(0,4,10,9,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#ffaaaa'; c.beginPath();
+      c.arc(-4,-2,3,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(4,-2,3,0,Math.PI*2); c.fill();
+      c.fillStyle='#cc0000'; c.beginPath();
+      c.arc(-3,-1.5,1.5,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(4.5,-1.5,1.5,0,Math.PI*2); c.fill();
+    }
+  },
+  frog: {
+    color:'#3aaa3a', size:{w:40,h:32},
+    draw(c,w,h,t) {
+      const sq = Math.abs(Math.sin(t*0.05))*4;
+      c.fillStyle='#3aaa3a'; c.beginPath();
+      c.ellipse(0,4,w/2,h/2-sq/2,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#5acc5a'; c.fillRect(-14,0,8,10); c.fillRect(6,0,8,10);
+      c.fillStyle='#fff';
+      c.beginPath(); c.arc(-7,-8,6,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(7,-8,6,0,Math.PI*2);  c.fill();
+      c.fillStyle='#111';
+      c.beginPath(); c.arc(-7,-8,3,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(7,-8,3,0,Math.PI*2);  c.fill();
+      c.strokeStyle='#2a7a2a'; c.lineWidth=2;
+      c.beginPath(); c.arc(0,4,8,0.2,Math.PI-0.2); c.stroke();
+    }
+  },
+  fish: {
+    color:'#2a80cc', size:{w:42,h:28},
+    draw(c,w,h,t) {
+      const wave = Math.sin(t*0.08)*4;
+      c.fillStyle='#2a80cc'; c.beginPath();
+      c.ellipse(2,wave,18,10,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#1a60aa'; c.beginPath();
+      c.moveTo(-18,wave); c.lineTo(-28,wave-10); c.lineTo(-28,wave+10); c.fill();
+      c.fillStyle='#fff'; c.beginPath(); c.arc(10,wave-2,5,0,Math.PI*2); c.fill();
+      c.fillStyle='#111'; c.beginPath(); c.arc(11,wave-2,2.5,0,Math.PI*2); c.fill();
+      c.strokeStyle='#4aacff'; c.lineWidth=1.5;
+      for (let i=0;i<3;i++){c.beginPath();c.arc(0,wave,6+i*4,0.3,Math.PI-0.3);c.stroke();}
+    }
+  },
+  spider: {
+    color:'#4a3020', size:{w:44,h:30},
+    draw(c,w,h,t) {
+      const legWave = Math.sin(t*0.09)*5;
+      c.fillStyle='#4a3020';
+      for(let i=0;i<4;i++){
+        const ang = (i/3)*(Math.PI*0.8)-0.4, len=18;
+        c.lineWidth=2; c.strokeStyle='#4a3020';
+        c.beginPath(); c.moveTo(-12,0); c.lineTo(-12-Math.cos(ang)*len, Math.sin(ang)*len+legWave*(i%2?1:-1)); c.stroke();
+        c.beginPath(); c.moveTo(12,0);  c.lineTo(12+Math.cos(ang)*len,  Math.sin(ang)*len+legWave*(i%2?-1:1)); c.stroke();
+      }
+      c.fillStyle='#6a5040'; c.beginPath(); c.ellipse(0,0,14,10,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#cc2020';
+      for(let i=-2;i<=2;i++){c.beginPath();c.arc(i*4,-5,2,0,Math.PI*2);c.fill();}
+    }
+  },
+  // ── 2-hit strong monsters ───────────────────────────────
+  ghost: {
+    color:'#8888cc', size:{w:36,h:44},
+    draw(c,w,h,t) {
+      const wave = Math.sin(t*0.07)*5;
+      c.globalAlpha=0.85;
+      c.fillStyle='#aaaaee'; c.beginPath();
+      c.arc(0,-10,16,Math.PI,0); c.lineTo(16,10);
+      for(let i=0;i<4;i++){
+        const x=16-i*8, nx=16-(i+1)*8;
+        c.quadraticCurveTo(x+wave+(i%2?3:-3),18,nx,10);
+      }
+      c.closePath(); c.fill();
+      c.globalAlpha=0.4; c.fillStyle='#ccccff';
+      c.beginPath(); c.ellipse(0,-16,8,6,0,0,Math.PI*2); c.fill();
+      c.globalAlpha=1;
+      c.fillStyle='#220044';
+      c.beginPath(); c.ellipse(-6,-10,5,6,0,0,Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(6,-10,5,6,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#8800cc';
+      c.beginPath(); c.ellipse(-5,-9,2.5,3,0,0,Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(7,-9,2.5,3,0,0,Math.PI*2); c.fill();
+    }
+  },
+  zombie: {
+    color:'#5a8a4a', size:{w:34,h:50},
+    draw(c,w,h,t) {
+      const lurch = Math.sin(t*0.05)*4;
+      c.fillStyle='#3a6a2a';
+      c.fillRect(-6,10+lurch,5,18); c.fillRect(1,10,5,18);
+      c.fillStyle='#5a8a4a'; c.fillRect(-10,-8+lurch,20,20);
+      c.fillStyle='#4a7a3a'; c.fillRect(-6,-8,12,4);
+      c.fillStyle='#8aaa6a'; c.fillRect(-8,-24+lurch,16,18);
+      c.fillStyle='#fff';
+      c.fillRect(-7,-18,5,6); c.fillRect(2,-18,5,6);
+      c.fillStyle='#cc0000';
+      c.fillRect(-6,-16,4,4); c.fillRect(3,-16,4,4);
+      c.fillStyle='#3a6a2a';
+      c.fillRect(-14,0+lurch,6,14); c.fillRect(8,2+lurch,6,12);
+      c.strokeStyle='#2a4a1a'; c.lineWidth=1;
+      c.beginPath(); c.moveTo(-5,2+lurch); c.lineTo(5,2+lurch); c.stroke();
+    }
+  },
+  skeleton: {
+    color:'#ccccaa', size:{w:30,h:52},
+    draw(c,w,h,t) {
+      const rattle=Math.sin(t*0.15)*2;
+      c.fillStyle='#ccccaa';
+      c.fillRect(-5,8,4,20+rattle); c.fillRect(1,10,4,18-rattle);
+      c.fillStyle='#ddddbb'; c.fillRect(-10,-6,20,16);
+      c.fillStyle='#bbbb99'; c.fillRect(-12,-4,4,12+rattle); c.fillRect(8,-2,4,10-rattle);
+      c.fillStyle='#eeeecc'; c.beginPath(); c.arc(0,-18,13,0,Math.PI*2); c.fill();
+      c.fillStyle='#111'; c.beginPath(); c.ellipse(-4,-18,4,5,0,0,Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(4,-18,4,5,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#ff4444'; c.beginPath();
+      c.arc(-3,-17,2,0,Math.PI*2); c.fill(); c.beginPath();
+      c.arc(5,-17,2,0,Math.PI*2); c.fill();
+      c.strokeStyle='#bbbb99'; c.lineWidth=2;
+      c.beginPath(); c.moveTo(-6,-8); c.lineTo(6,-8); c.stroke();
+      c.beginPath(); c.moveTo(-6,-4); c.lineTo(6,-4); c.stroke();
+      c.beginPath(); c.moveTo(-6,0);  c.lineTo(6,0);  c.stroke();
+    }
+  },
+  troll: {
+    color:'#4a7a3a', size:{w:46,h:54},
+    draw(c,w,h,t) {
+      const stomp=Math.abs(Math.sin(t*0.06))*4;
+      c.fillStyle='#2a5a1a'; c.fillRect(-14,14+stomp,12,20); c.fillRect(2,14,12,20);
+      c.fillStyle='#4a7a3a'; c.fillRect(-18,-10,36,28);
+      c.fillStyle='#5a8a4a';
+      c.fillRect(-26,-6,10,22+stomp); c.fillRect(16,-4,10,20-stomp);
+      c.fillStyle='#6a9a5a'; c.beginPath(); c.arc(0,-22,17,0,Math.PI*2); c.fill();
+      c.fillStyle='#111'; c.beginPath();
+      c.arc(-6,-22,6,0,Math.PI*2); c.fill(); c.beginPath();
+      c.arc(6,-22,6,0,Math.PI*2); c.fill();
+      c.fillStyle='#ffcc00'; c.beginPath();
+      c.arc(-5,-21,3,0,Math.PI*2); c.fill(); c.beginPath();
+      c.arc(7,-21,3,0,Math.PI*2); c.fill();
+      c.fillStyle='#2a5a1a'; c.fillRect(-10,-18,4,8); c.fillRect(6,-18,4,8);
+      c.strokeStyle='#2a5a1a'; c.lineWidth=2;
+      c.beginPath(); c.arc(0,-10,8,0.1,Math.PI-0.1); c.stroke();
+    }
+  },
+  wizard: {
+    color:'#5a2a8a', size:{w:34,h:54},
+    draw(c,w,h,t) {
+      const bob = Math.sin(t*0.05)*3;
+      c.fillStyle='#3a1a6a'; c.beginPath();
+      c.moveTo(0,-36+bob); c.lineTo(16,-6); c.lineTo(-16,-6); c.closePath(); c.fill();
+      c.fillStyle='#7a4aaa'; c.fillRect(-14,-6,28,30+bob);
+      c.fillStyle='#c8a8e0'; c.beginPath(); c.arc(0,-10+bob,12,0,Math.PI*2); c.fill();
+      c.fillStyle='#5a2a8a'; c.beginPath();
+      c.arc(-5,-10+bob,4,0,Math.PI*2); c.fill(); c.beginPath();
+      c.arc(5,-10+bob,4,0,Math.PI*2); c.fill();
+      c.fillStyle='#ffff00';
+      c.beginPath(); c.arc(-4,-9+bob,2,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(6,-9+bob,2,0,Math.PI*2); c.fill();
+      const starT = t*0.08;
+      ['#ffff80','#ff80ff','#80ffff'].forEach((col,i)=>{
+        const ang=starT+i*(Math.PI*2/3), r=22;
+        c.fillStyle=col; c.beginPath();
+        c.arc(Math.cos(ang)*r+bob, Math.sin(ang)*r-20, 3, 0, Math.PI*2); c.fill();
+      });
+    }
+  },
+  // ── 3-hit bosses ────────────────────────────────────────
+  dragon: {
+    color:'#cc2a2a', size:{w:56,h:54},
+    draw(c,w,h,t) {
+      const wingFlap = Math.sin(t*0.07)*15;
+      c.fillStyle='#8a1a1a';
+      c.beginPath(); c.moveTo(-28,-16); c.lineTo(-28-wingFlap,-40); c.lineTo(-8,0); c.fill();
+      c.beginPath(); c.moveTo(28,-16); c.lineTo(28+wingFlap,-40); c.lineTo(8,0); c.fill();
+      c.fillStyle='#cc2a2a'; c.beginPath(); c.ellipse(0,4,22,18,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#aa2020'; c.beginPath(); c.ellipse(14,-10,14,10,-0.3,0,Math.PI*2); c.fill();
+      c.fillStyle='#ee3030';
+      c.beginPath(); c.arc(-8,-8,8,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(8,-8,8,0,Math.PI*2); c.fill();
+      c.fillStyle='#ffff00';
+      c.beginPath(); c.arc(-7,-7,4,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(9,-7,4,0,Math.PI*2); c.fill();
+      c.fillStyle='#111';
+      c.beginPath(); c.arc(-6,-6,2,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(10,-6,2,0,Math.PI*2); c.fill();
+      c.fillStyle='#ff8800';
+      const fireFlicker = Math.sin(t*0.2)*4;
+      c.beginPath(); c.moveTo(24,-8); c.lineTo(36+fireFlicker,-14); c.lineTo(38+fireFlicker,0); c.lineTo(26,4); c.fill();
+    }
+  },
+  lich: {
+    color:'#6a3a8a', size:{w:36,h:56},
+    draw(c,w,h,t) {
+      const float = Math.sin(t*0.06)*4;
+      c.fillStyle='#2a0a4a'; c.fillRect(-12,4+float,8,22); c.fillRect(4,6+float,8,20);
+      c.fillStyle='#4a1a6a'; c.fillRect(-14,-12+float,28,20);
+      c.fillStyle='#3a0a5a'; c.fillRect(-16,-10+float,6,18); c.fillRect(10,-8+float,6,16);
+      c.fillStyle='#ccbbdd'; c.beginPath(); c.arc(0,-22+float,14,0,Math.PI*2); c.fill();
+      c.fillStyle='#220033';
+      c.beginPath(); c.arc(-5,-22+float,5,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(5,-22+float,5,0,Math.PI*2); c.fill();
+      c.fillStyle='#cc00ff';
+      c.beginPath(); c.arc(-4,-21+float,2.5,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(6,-21+float,2.5,0,Math.PI*2); c.fill();
+      c.strokeStyle='#ccbbdd'; c.lineWidth=1.5;
+      c.beginPath(); c.moveTo(-8,-15+float); c.lineTo(8,-15+float); c.stroke();
+      c.beginPath(); c.moveTo(-8,-11+float); c.lineTo(8,-11+float); c.stroke();
+      c.beginPath(); c.moveTo(-8,-7+float); c.lineTo(8,-7+float); c.stroke();
+      const aura=t*0.05;
+      c.strokeStyle=`rgba(180,0,255,${0.4+0.3*Math.sin(aura)})`; c.lineWidth=3;
+      c.beginPath(); c.arc(0,-22+float,20,0,Math.PI*2); c.stroke();
+      // Crown
+      c.fillStyle='#ffcc00';
+      c.fillRect(-14,-36+float,28,6);
+      c.fillRect(-14,-38+float,4,4); c.fillRect(-4,-40+float,4,6); c.fillRect(6,-38+float,4,4);
+    }
+  },
+  golem: {
+    color:'#7a6a5a', size:{w:52,h:58},
+    draw(c,w,h,t) {
+      const stomp=Math.abs(Math.sin(t*0.04))*5;
+      c.fillStyle='#4a3a2a'; c.fillRect(-16,14+stomp,14,22); c.fillRect(2,14,14,22);
+      c.fillStyle='#7a6a5a'; c.fillRect(-20,-14,40,32);
+      c.fillStyle='#5a4a3a';
+      c.fillRect(-28,-10,12,26+stomp); c.fillRect(16,-8,12,24-stomp);
+      c.fillStyle='#8a7a6a'; c.fillRect(-18,-28,36,18);
+      c.fillStyle='#ff6600';
+      c.beginPath(); c.arc(-6,-20,8,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(6,-20,8,0,Math.PI*2); c.fill();
+      c.fillStyle='#ff4400';
+      c.beginPath(); c.arc(-5,-19,4,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(7,-19,4,0,Math.PI*2); c.fill();
+      c.strokeStyle='#3a2a1a'; c.lineWidth=3;
+      c.beginPath(); c.moveTo(-18,-14); c.lineTo(18,-14); c.stroke();
+      c.beginPath(); c.moveTo(-18,-6); c.lineTo(18,-6); c.stroke();
+      c.beginPath(); c.moveTo(-18,2); c.lineTo(18,2); c.stroke();
+    }
+  },
+  sea_dragon: {
+    color:'#2a6a8a', size:{w:58,h:52},
+    draw(c,w,h,t) {
+      const wave=Math.sin(t*0.07)*8;
+      c.fillStyle='#1a4a6a';
+      c.beginPath(); c.moveTo(-30,-8+wave*0.5); c.lineTo(-30,-26+wave*0.5); c.lineTo(-10,-8); c.fill();
+      c.beginPath(); c.moveTo(-30,-8+wave*0.5); c.lineTo(-30,10+wave*0.5); c.lineTo(-10,-2); c.fill();
+      c.fillStyle='#2a6a8a'; c.beginPath();
+      c.ellipse(4,wave*0.3,24,16,0,0,Math.PI*2); c.fill();
+      c.fillStyle='#1a5a7a'; c.beginPath();
+      c.ellipse(22,-8+wave*0.2,14,10,-0.2,0,Math.PI*2); c.fill();
+      c.fillStyle='#4a9aaa';
+      c.beginPath(); c.arc(-4,-4+wave*0.3,8,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(10,-4+wave*0.3,8,0,Math.PI*2); c.fill();
+      c.fillStyle='#00ffcc';
+      c.beginPath(); c.arc(-3,-3+wave*0.3,4,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(11,-3+wave*0.3,4,0,Math.PI*2); c.fill();
+      c.fillStyle='#111';
+      c.beginPath(); c.arc(-2,-2+wave*0.3,2,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(12,-2+wave*0.3,2,0,Math.PI*2); c.fill();
+    }
+  },
+};
+
 function addXP(n) {
   if (!G) return;
   G.heroXP += n;
@@ -123,14 +407,14 @@ const LEVEL_DEFS = [
       {x:2850,y:280, w:110,  h:18},
     ],
     enemies:[
-      {x:390, y:252, subtopic:'A1'},
-      {x:700, y:242, subtopic:'A1'},
-      {x:1020,y:232, subtopic:'A2'},
-      {x:1370,y:252, subtopic:'A1'},
-      {x:1720,y:292, subtopic:'A2'},
-      {x:2100,y:302, subtopic:'A2'},
-      {x:2670,y:282, subtopic:'A1'},
-      {x:2870,y:232, subtopic:'A2'},
+      {x:390, y:252, subtopic:'A1', type:'slime',  hits:1},
+      {x:700, y:242, subtopic:'A1', type:'slime',  hits:1},
+      {x:1020,y:232, subtopic:'A2', type:'slime',  hits:1},
+      {x:1370,y:252, subtopic:'A1', type:'slime',  hits:1},
+      {x:1720,y:292, subtopic:'A2', type:'slime',  hits:1},
+      {x:2100,y:302, subtopic:'A2', type:'ghost',  hits:2},
+      {x:2670,y:282, subtopic:'A1', type:'ghost',  hits:2},
+      {x:2870,y:212, subtopic:'A2', type:'dragon', hits:3},
     ],
     collectibles: genCoinsOnPlatforms([
       {x:200,y:340,w:120},{x:380,y:300,w:100},{x:540,y:360,w:90},{x:700,y:290,w:110},
@@ -164,14 +448,14 @@ const LEVEL_DEFS = [
       {x:2920,y:270, w:100,  h:18},
     ],
     enemies:[
-      {x:340, y:242, subtopic:'A3'},
-      {x:680, y:252, subtopic:'A4'},
-      {x:850, y:212, subtopic:'A3'},
-      {x:1220,y:242, subtopic:'A5'},
-      {x:1580,y:232, subtopic:'A4'},
-      {x:1760,y:262, subtopic:'A3'},
-      {x:2140,y:292, subtopic:'A5'},
-      {x:2940,y:222, subtopic:'A4'},
+      {x:340, y:242, subtopic:'A3', type:'bat',    hits:1},
+      {x:680, y:252, subtopic:'A4', type:'bat',    hits:1},
+      {x:850, y:212, subtopic:'A3', type:'bat',    hits:1},
+      {x:1220,y:242, subtopic:'A5', type:'bat',    hits:1},
+      {x:1580,y:232, subtopic:'A4', type:'bat',    hits:1},
+      {x:1760,y:262, subtopic:'A3', type:'ghost',  hits:2},
+      {x:2140,y:292, subtopic:'A5', type:'ghost',  hits:2},
+      {x:2940,y:202, subtopic:'A4', type:'dragon', hits:3},
     ],
     collectibles: genCoinsOnPlatforms([
       {x:160,y:350,w:110},{x:330,y:290,w:100},{x:510,y:360,w:90},{x:840,y:260,w:100},
@@ -205,14 +489,14 @@ const LEVEL_DEFS = [
       {x:2850,y:260, w:110,  h:18},
     ],
     enemies:[
-      {x:340, y:252, subtopic:'A6'},
-      {x:670, y:262, subtopic:'A7'},
-      {x:840, y:212, subtopic:'A8'},
-      {x:1180,y:242, subtopic:'A6'},
-      {x:1540,y:242, subtopic:'A7'},
-      {x:1720,y:202, subtopic:'A8'},
-      {x:2270,y:292, subtopic:'A6'},
-      {x:2870,y:212, subtopic:'A7'},
+      {x:340, y:252, subtopic:'A6', type:'spider',  hits:1},
+      {x:670, y:262, subtopic:'A7', type:'spider',  hits:1},
+      {x:840, y:212, subtopic:'A8', type:'spider',  hits:1},
+      {x:1180,y:242, subtopic:'A6', type:'spider',  hits:1},
+      {x:1540,y:242, subtopic:'A7', type:'spider',  hits:1},
+      {x:1720,y:202, subtopic:'A8', type:'golem',   hits:2},
+      {x:2270,y:292, subtopic:'A6', type:'golem',   hits:2},
+      {x:2870,y:192, subtopic:'A7', type:'dragon',  hits:3},
     ],
     collectibles: genCoinsOnPlatforms([
       {x:170,y:360,w:100},{x:330,y:300,w:90},{x:660,y:310,w:110},{x:830,y:260,w:90},
@@ -246,14 +530,14 @@ const LEVEL_DEFS = [
       {x:2970,y:260, w:110,  h:18},
     ],
     enemies:[
-      {x:400, y:252, subtopic:'B1'},
-      {x:740, y:262, subtopic:'B2'},
-      {x:920, y:212, subtopic:'B1'},
-      {x:1290,y:242, subtopic:'B3'},
-      {x:1660,y:242, subtopic:'B2'},
-      {x:1850,y:202, subtopic:'B3'},
-      {x:2220,y:222, subtopic:'B1'},
-      {x:2990,y:212, subtopic:'B3'},
+      {x:400, y:252, subtopic:'B1', type:'skeleton', hits:1},
+      {x:740, y:262, subtopic:'B2', type:'skeleton', hits:1},
+      {x:920, y:212, subtopic:'B1', type:'skeleton', hits:1},
+      {x:1290,y:242, subtopic:'B3', type:'skeleton', hits:1},
+      {x:1660,y:242, subtopic:'B2', type:'skeleton', hits:1},
+      {x:1850,y:202, subtopic:'B3', type:'zombie',   hits:2},
+      {x:2220,y:222, subtopic:'B1', type:'zombie',   hits:2},
+      {x:2990,y:192, subtopic:'B3', type:'lich',     hits:3},
     ],
     collectibles: genCoinsOnPlatforms([
       {x:210,y:350,w:110},{x:390,y:300,w:100},{x:730,y:310,w:110},{x:910,y:260,w:100},
@@ -287,14 +571,14 @@ const LEVEL_DEFS = [
       {x:2900,y:250, w:100,  h:18},
     ],
     enemies:[
-      {x:330, y:252, subtopic:'B4'},
-      {x:650, y:262, subtopic:'B5'},
-      {x:830, y:207, subtopic:'B6'},
-      {x:1180,y:232, subtopic:'B7'},
-      {x:1550,y:232, subtopic:'B5'},
-      {x:1740,y:192, subtopic:'B8'},
-      {x:2120,y:212, subtopic:'B6'},
-      {x:2920,y:202, subtopic:'B8'},
+      {x:330, y:252, subtopic:'B4', type:'spider',  hits:1},
+      {x:650, y:262, subtopic:'B5', type:'spider',  hits:1},
+      {x:830, y:207, subtopic:'B6', type:'spider',  hits:1},
+      {x:1180,y:232, subtopic:'B7', type:'spider',  hits:1},
+      {x:1550,y:232, subtopic:'B5', type:'spider',  hits:1},
+      {x:1740,y:192, subtopic:'B8', type:'golem',   hits:2},
+      {x:2120,y:212, subtopic:'B6', type:'golem',   hits:2},
+      {x:2920,y:182, subtopic:'B8', type:'lich',    hits:3},
     ],
     collectibles: genCoinsOnPlatforms([
       {x:160,y:360,w:100},{x:320,y:300,w:90},{x:640,y:310,w:110},{x:820,y:255,w:90},
@@ -328,14 +612,14 @@ const LEVEL_DEFS = [
       {x:2950,y:255, w:110,  h:18},
     ],
     enemies:[
-      {x:380, y:247, subtopic:'C1'},
-      {x:720, y:257, subtopic:'C2'},
-      {x:900, y:207, subtopic:'C3'},
-      {x:1270,y:237, subtopic:'C1'},
-      {x:1640,y:237, subtopic:'C2'},
-      {x:1830,y:197, subtopic:'C3'},
-      {x:2210,y:217, subtopic:'C1'},
-      {x:2970,y:207, subtopic:'C2'},
+      {x:380, y:247, subtopic:'C1', type:'frog',   hits:1},
+      {x:720, y:257, subtopic:'C2', type:'frog',   hits:1},
+      {x:900, y:207, subtopic:'C3', type:'frog',   hits:1},
+      {x:1270,y:237, subtopic:'C1', type:'frog',   hits:1},
+      {x:1640,y:237, subtopic:'C2', type:'frog',   hits:1},
+      {x:1830,y:197, subtopic:'C3', type:'troll',  hits:2},
+      {x:2210,y:217, subtopic:'C1', type:'troll',  hits:2},
+      {x:2970,y:187, subtopic:'C2', type:'golem',  hits:3},
     ],
     collectibles: genCoinsOnPlatforms([
       {x:190,y:345,w:110},{x:370,y:295,w:100},{x:710,y:305,w:110},{x:890,y:255,w:100},
@@ -369,14 +653,14 @@ const LEVEL_DEFS = [
       {x:2910,y:260, w:110,  h:18},
     ],
     enemies:[
-      {x:340, y:252, subtopic:'C4'},
-      {x:660, y:262, subtopic:'C5'},
-      {x:840, y:212, subtopic:'C6'},
-      {x:1190,y:242, subtopic:'C4'},
-      {x:1560,y:242, subtopic:'C5'},
-      {x:1750,y:202, subtopic:'C6'},
-      {x:2130,y:222, subtopic:'C4'},
-      {x:2930,y:212, subtopic:'C5'},
+      {x:340, y:252, subtopic:'C4', type:'skeleton', hits:1},
+      {x:660, y:262, subtopic:'C5', type:'skeleton', hits:1},
+      {x:840, y:212, subtopic:'C6', type:'skeleton', hits:1},
+      {x:1190,y:242, subtopic:'C4', type:'skeleton', hits:1},
+      {x:1560,y:242, subtopic:'C5', type:'skeleton', hits:1},
+      {x:1750,y:202, subtopic:'C6', type:'wizard',   hits:2},
+      {x:2130,y:222, subtopic:'C4', type:'wizard',   hits:2},
+      {x:2930,y:192, subtopic:'C5', type:'dragon',   hits:3},
     ],
     collectibles: genCoinsOnPlatforms([
       {x:170,y:355,w:100},{x:330,y:300,w:90},{x:650,y:310,w:110},{x:830,y:260,w:90},
@@ -410,14 +694,14 @@ const LEVEL_DEFS = [
       {x:2940,y:265, w:100,  h:18},
     ],
     enemies:[
-      {x:340, y:257, subtopic:'C7'},
-      {x:670, y:267, subtopic:'C8'},
-      {x:850, y:217, subtopic:'C9'},
-      {x:1220,y:247, subtopic:'C7'},
-      {x:1590,y:247, subtopic:'C10'},
-      {x:1780,y:207, subtopic:'C8'},
-      {x:2160,y:227, subtopic:'C9'},
-      {x:2960,y:217, subtopic:'C10'},
+      {x:340, y:257, subtopic:'C7',  type:'fish',       hits:1},
+      {x:670, y:267, subtopic:'C8',  type:'fish',       hits:1},
+      {x:850, y:217, subtopic:'C9',  type:'fish',       hits:1},
+      {x:1220,y:247, subtopic:'C7',  type:'fish',       hits:1},
+      {x:1590,y:247, subtopic:'C10', type:'fish',       hits:1},
+      {x:1780,y:207, subtopic:'C8',  type:'troll',      hits:2},
+      {x:2160,y:227, subtopic:'C9',  type:'troll',      hits:2},
+      {x:2960,y:197, subtopic:'C10', type:'sea_dragon', hits:3},
     ],
     collectibles: genCoinsOnPlatforms([
       {x:160,y:360,w:110},{x:330,y:305,w:100},{x:660,y:315,w:110},{x:840,y:265,w:100},
@@ -451,15 +735,15 @@ const LEVEL_DEFS = [
       {x:3200,y:310, w:110,  h:18},
     ],
     enemies:[
-      {x:420, y:242, subtopic:'A1'},
-      {x:780, y:247, subtopic:'B1'},
-      {x:980, y:197, subtopic:'C1'},
-      {x:1370,y:222, subtopic:'A3'},
-      {x:1760,y:232, subtopic:'B5'},
-      {x:1970,y:192, subtopic:'C4'},
-      {x:2370,y:217, subtopic:'B6'},
-      {x:3000,y:192, subtopic:'C7'},
-      {x:3220,y:262, subtopic:'A3'},
+      {x:420, y:242, subtopic:'A1', type:'slime',    hits:1},
+      {x:780, y:247, subtopic:'B1', type:'skeleton', hits:1},
+      {x:980, y:197, subtopic:'C1', type:'frog',     hits:1},
+      {x:1370,y:222, subtopic:'A3', type:'ghost',    hits:2},
+      {x:1760,y:232, subtopic:'B5', type:'zombie',   hits:2},
+      {x:1970,y:192, subtopic:'C4', type:'wizard',   hits:2},
+      {x:2370,y:217, subtopic:'B6', type:'lich',     hits:3},
+      {x:3000,y:192, subtopic:'C7', type:'dragon',   hits:3},
+      {x:3220,y:242, subtopic:'A3', type:'golem',    hits:3},
     ],
     collectibles: genCoinsOnPlatforms([
       {x:210,y:350,w:120},{x:410,y:290,w:110},{x:770,y:295,w:120},{x:970,y:245,w:100},
@@ -597,16 +881,21 @@ function loadLevel(def) {
     return {
       id: i,
       x: e.x, y: e.y,
-      w: 36, h: 44,
-      vx: 1.2, dir: 1,
+      type: e.type || 'slime',
+      hitsMax: e.hits || 1,
+      hitsLeft: e.hits || 1,
+      w: (MONSTER_TYPES[e.type||'slime']?.size?.w || 36),
+      h: (MONSTER_TYPES[e.type||'slime']?.size?.h || 44),
+      vx: e.hits === 3 ? 0.7 : e.hits === 2 ? 1.0 : 1.4,
+      dir: 1,
       patrolL: plat ? plat.x + 10 : e.x - 80,
       patrolR: plat ? plat.x + plat.w - 10 : e.x + 80,
       problem,
       alive: true,
       alertRadius: 220,
       animTick: 0,
+      flashTick: 0,
       subtopic: e.subtopic,
-      // Show the problem numbers visually on enemy
       label: problem ? getEnemyLabel(problem) : '?',
     };
   });
@@ -665,7 +954,7 @@ function updatePlayer(dt) {
 
   // Jumping
   if (keys.up && P.onGround && !jumpConsumed) {
-    P.vy = -13;
+    P.vy = -17;  // stronger jump
     jumpConsumed = true;
     spawnParticles(P.x + P.w/2, P.y + P.h, '#aaaaff', 4);
   }
@@ -820,7 +1109,16 @@ function triggerMathProblem(enemy) {
   const topicNames = { A:'FRACTIONS & DECIMALS', B:'LONG DIVISION', C:'MULTIPLICATION' };
   const p = enemy.problem;
 
-  document.getElementById('math-enemy-label').textContent = currentLevelDef.enemyLabel + ' — ' + enemy.label;
+  const hitBadge = enemy.hitsMax > 1 ? ` [${enemy.hitsLeft}/${enemy.hitsMax} HP]` : '';
+  const enemyPrefix = enemy.hitsMax === 3 ? '👾 BOSS' : enemy.hitsMax === 2 ? '💪 STRONG ENEMY' : '⚔️ ENEMY';
+  const howToTip = enemy.hitsMax === 3
+    ? `This BOSS takes ${enemy.hitsMax} correct answers to defeat — one problem per hit. Stay sharp!`
+    : enemy.hitsMax === 2
+    ? `This strong enemy takes 2 correct answers to defeat. First hit stuns it, second kills it!`
+    : `Answer correctly to defeat this enemy in one hit!`;
+  document.getElementById('math-enemy-label').innerHTML =
+    `<strong>${enemyPrefix}</strong> — ${enemy.label}${hitBadge}<br>
+     <span style="font-size:10px;font-family:var(--mono);color:var(--grey);">${howToTip}</span>`;
   document.getElementById('math-topic-badge').textContent = topicNames[p.topic] || p.topic;
   document.getElementById('math-question').innerHTML = formatQuestion(p.question);
   document.getElementById('math-hint-box').style.display = 'none';
@@ -858,25 +1156,71 @@ function submitMathAnswer(userInput) {
 
   if (correct) {
     G.totalCorrect++;
-    addXP(20);
-    writeSave();
-    document.getElementById('math-feedback').textContent = '✅ CORRECT! Enemy defeated!';
-    document.getElementById('math-feedback').style.color = 'var(--green)';
-    // Defeat enemy
-    setTimeout(() => {
-      document.getElementById('math-modal').style.display = 'none';
-      const e = mathCtx.enemy;
-      e.alive = false;
-      levelStats.enemiesLeft--;
-      spawnParticles(e.x + e.w/2, e.y + e.h/2, '#44d479', 20);
-      spawnParticles(e.x + e.w/2, e.y + e.h/2, '#f0d060', 10);
-      gameState = 'playing';
-      updateGameHUD();
-      checkAch('first_enemy');
-      if (G.totalCorrect >= 20) checkAch('correct_20');
-      if (G.totalCorrect >= 50) checkAch('correct_50');
-      if (levelStats.enemiesLeft === 0) toast('🎉 All enemies defeated! Reach the portal!');
-    }, 800);
+    const e = mathCtx.enemy;
+    e.hitsLeft--;
+    e.flashTick = 25;
+
+    if (e.hitsLeft > 0) {
+      // Hit but not dead yet
+      const xpHit = 8;
+      addXP(xpHit);
+      const hitWord = e.hitsLeft === 2 ? 'ONE more hit!' : 'TWO more hits!';
+      document.getElementById('math-feedback').textContent =
+        `💥 HIT! ${hitWord} (${e.hitsLeft} / ${e.hitsMax} HP left)`;
+      document.getElementById('math-feedback').style.color = 'var(--yellow)';
+      // Give a fresh (harder) problem for next hit
+      const pool = MP.getProblemsBySubtopic(e.subtopic).filter(p => p.difficulty >= 2) ||
+                   MP.getProblemsBySubtopic(e.subtopic);
+      if (pool && pool.length) {
+        e.problem = pool[Math.floor(Math.random() * pool.length)];
+        e.label = getEnemyLabel(e.problem);
+        mathCtx.problem = e.problem;
+      }
+      setTimeout(() => {
+        // Re-render the question for the next hit
+        document.getElementById('math-feedback').textContent = '';
+        document.getElementById('math-question').innerHTML = formatQuestion(mathCtx.problem.question);
+        document.getElementById('math-answer-input').value = '';
+        const mcDiv = document.getElementById('math-mc-choices');
+        if (mathCtx.problem.type === 'mc' && mathCtx.problem.choices) {
+          mcDiv.style.display = 'grid'; mcDiv.innerHTML = '';
+          mathCtx.problem.choices.forEach(choice => {
+            const btn = document.createElement('button');
+            btn.className = 'mc-btn'; btn.textContent = choice;
+            btn.addEventListener('click', () => submitMathAnswer(choice));
+            mcDiv.appendChild(btn);
+          });
+        } else {
+          mcDiv.style.display = 'none';
+          document.getElementById('math-answer-input').focus();
+        }
+        // Update badge
+        document.getElementById('math-enemy-label').textContent =
+          `💥 ${e.hitsLeft} HP LEFT — Keep going!`;
+      }, 900);
+    } else {
+      // Final hit — enemy dies
+      addXP(20 + (e.hitsMax - 1) * 12);
+      writeSave();
+      document.getElementById('math-feedback').textContent =
+        e.hitsMax >= 3 ? '🏆 BOSS DEFEATED!' : '✅ CORRECT! Enemy defeated!';
+      document.getElementById('math-feedback').style.color = 'var(--green)';
+      setTimeout(() => {
+        document.getElementById('math-modal').style.display = 'none';
+        e.alive = false;
+        levelStats.enemiesLeft--;
+        const count = e.hitsMax >= 3 ? 40 : e.hitsMax === 2 ? 25 : 15;
+        spawnParticles(e.x + e.w/2, e.y + e.h/2, '#44d479', count);
+        spawnParticles(e.x + e.w/2, e.y + e.h/2, '#f0d060', count/2);
+        if (e.hitsMax >= 3) spawnParticles(e.x + e.w/2, e.y + e.h/2, '#ff4444', 20);
+        gameState = 'playing';
+        updateGameHUD();
+        checkAch('first_enemy');
+        if (G.totalCorrect >= 20) checkAch('correct_20');
+        if (G.totalCorrect >= 50) checkAch('correct_50');
+        if (levelStats.enemiesLeft === 0) toast('🎉 All enemies defeated! Reach the portal!');
+      }, 900);
+    }
   } else {
     mathCtx.wrongCount++;
     document.getElementById('math-feedback').textContent = '❌ Not quite — try again!';
@@ -1273,48 +1617,73 @@ function renderEnemies(def) {
     const bounce = Math.sin(now * 3 + e.id) * 3;
     const facing = e.dir;
 
+    // Flash white when hit
+    if (e.flashTick > 0) {
+      e.flashTick -= 1;
+      ctx.save();
+      ctx.translate(e.x + e.w/2, e.y + e.h/2 + bounce);
+      ctx.scale(facing, 1);
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(0, 0, e.w/2 + 4, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    // Draw typed monster sprite
+    const mdef = MONSTER_TYPES[e.type] || MONSTER_TYPES.slime;
     ctx.save();
     ctx.translate(e.x + e.w/2, e.y + e.h/2 + bounce);
     ctx.scale(facing, 1);
 
-    // Enemy body — color based on topic
-    const col = def.topic==='A'?'#5b8dee': def.topic==='B'?'#9c4040': def.topic==='C'?'#408040':'#c03030';
-    const darkCol = def.topic==='A'?'#2a5aaa': def.topic==='B'?'#701010': def.topic==='C'?'#206020':'#801010';
+    // Boss glow
+    if (e.hitsMax === 3) {
+      ctx.shadowBlur = 20 + Math.sin(now * 4) * 8;
+      ctx.shadowColor = mdef.color;
+    }
 
-    // Body
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    ctx.arc(0, -4, 18, 0, Math.PI * 2);
-    ctx.fill();
-    // Eyes
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(-10, -12, 8, 8);
-    ctx.fillRect(2, -12, 8, 8);
-    ctx.fillStyle = '#111';
-    ctx.fillRect(-8, -10, 5, 5);
-    ctx.fillRect(4, -10, 5, 5);
-    // Mouth (angry)
-    ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(-8, 2); ctx.lineTo(8, 2); ctx.stroke();
-
+    mdef.draw(ctx, e.w, e.h, e.animTick);
     ctx.restore();
 
-    // Label showing the math on the enemy
+    // HP squares above enemy (for multi-hit)
+    if (e.hitsMax > 1) {
+      const barX = e.x + e.w/2 - (e.hitsMax * 10)/2;
+      for (let h = 0; h < e.hitsMax; h++) {
+        ctx.fillStyle = h < e.hitsLeft ? '#e84040' : 'rgba(80,20,20,0.5)';
+        ctx.fillRect(barX + h * 11, e.y - 18, 9, 9);
+        ctx.strokeStyle = '#111'; ctx.lineWidth = 1;
+        ctx.strokeRect(barX + h * 11, e.y - 18, 9, 9);
+      }
+    }
+
+    // Math label on enemy
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(e.x - 2, e.y - 22, e.w + 4, 18);
-    ctx.fillStyle = '#f0d060';
-    ctx.font = 'bold 10px monospace';
+    const lblBg = e.hitsMax === 3 ? 'rgba(100,0,0,0.85)' : 'rgba(0,0,0,0.75)';
+    ctx.fillStyle = lblBg;
+    const lblW = e.w + 20, lblH = 16;
+    ctx.fillRect(e.x + e.w/2 - lblW/2, e.y - (e.hitsMax>1?34:22), lblW, lblH);
+    ctx.fillStyle = e.hitsMax === 3 ? '#ff8888' : '#f0d060';
+    ctx.font = 'bold ' + (e.hitsMax===3?11:10) + 'px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(e.label, e.x + e.w/2, e.y - 8);
+    ctx.fillText(e.label, e.x + e.w/2, e.y - (e.hitsMax>1?34:22) + 12);
     ctx.restore();
 
-    // Alert radius visual when player is close
+    // "BOSS!" badge
+    if (e.hitsMax === 3) {
+      ctx.save();
+      ctx.fillStyle = `rgba(200,0,0,${0.7 + 0.3*Math.sin(now*3)})`;
+      ctx.fillRect(e.x + e.w/2 - 20, e.y - 52, 40, 14);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('BOSS', e.x + e.w/2, e.y - 41);
+      ctx.restore();
+    }
+
+    // Alert radius when player is close
     if (P && dist(P.x + P.w/2, P.y + P.h/2, e.x + e.w/2, e.y + e.h/2) < e.alertRadius * 0.5) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(255,50,50,0.4)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = e.hitsMax===3?'rgba(255,0,0,0.5)':'rgba(255,100,100,0.3)';
+      ctx.lineWidth = e.hitsMax===3 ? 3 : 1.5;
       ctx.setLineDash([4,4]);
       ctx.beginPath();
       ctx.arc(e.x + e.w/2, e.y + e.h/2, e.alertRadius * 0.5, 0, Math.PI*2);
