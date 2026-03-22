@@ -2,459 +2,197 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Math Quest RPG</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Math Quest</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ─────────────────────────────────────────────────────────
-     HUD BAR (persistent, shown during battle/minitest)
-───────────────────────────────────────────────────────────── -->
-<div class="hud-bar hidden" id="hud-bar">
-  <div class="hud-item hud-level">⚔️ LV <span id="hud-level">1</span></div>
-  <div class="hud-item hud-hp">❤️ <span id="hud-hp">200</span>/<span id="hud-maxhp">200</span></div>
-  <div class="hud-item hud-gold">🪙 <span id="hud-gold">0</span></div>
-  <div class="hud-item hud-xp">✨ XP <span id="hud-xp">0</span>/<span id="hud-xpmax">500</span></div>
-  <div class="hud-item" style="margin-left:auto; color:var(--grey)">
-    🧪 <span id="hud-potions">0</span>
-    &nbsp;💡 <span id="hud-hints">3</span>
-    &nbsp;⚡ <span id="hud-skips">1</span>
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: TITLE
+═══════════════════════════════════════════════════ -->
+<div id="screen-title" class="screen active">
+  <div class="title-wrap">
+    <div class="title-logo">⚔️ MATH QUEST</div>
+    <div class="title-sub">DEFEAT MONSTERS · MASTER MATH</div>
+    <div id="streak-badge" class="streak-badge hidden">🔥 <span id="streak-val">0</span>-day streak!</div>
+    <div class="title-btns">
+      <button class="btn primary" id="btn-start">▶ START ADVENTURE</button>
+      <button class="btn" id="btn-continue" style="display:none">▶ CONTINUE</button>
+      <button class="btn" id="btn-newgame">✦ NEW GAME</button>
+      <button class="btn" id="btn-achievements">🏆 ACHIEVEMENTS</button>
+    </div>
   </div>
 </div>
 
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Name Entry
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-name">
-  <div style="margin-top:60px; text-align:center; display:flex; flex-direction:column; gap:24px; align-items:center;">
-    <div class="title-logo">⚔️ MATH QUEST RPG</div>
-    <div class="pixel" style="font-size:9px; color:var(--grey)">ENTER YOUR NAME, HERO</div>
-    <input class="name-input" id="name-input" type="text" maxlength="12"
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: NAME ENTRY
+═══════════════════════════════════════════════════ -->
+<div id="screen-name" class="screen">
+  <div class="center-panel">
+    <div class="pixel" style="font-size:10px;color:var(--accent2);margin-bottom:20px;">ENTER YOUR NAME, HERO</div>
+    <input id="name-input" class="name-input" type="text" maxlength="12"
            placeholder="HERO NAME" autocomplete="off" autocorrect="off" spellcheck="false">
-    <button class="btn primary" id="name-confirm-btn">START ADVENTURE</button>
+    <button class="btn primary" id="btn-name-confirm">BEGIN ⚔️</button>
   </div>
 </div>
 
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Title
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-title">
-  <!-- Hero pixel art (SVG) -->
-  <div style="margin-top:40px;">
-    <svg class="title-hero hero-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="width:80px;height:80px;image-rendering:pixelated;">
-      <rect x="6" y="1" width="4" height="4" fill="#c0c0f0"/><!-- head -->
-      <rect x="5" y="5" width="6" height="5" fill="#3a7aff"/><!-- body -->
-      <rect x="3" y="5" width="2" height="4" fill="#3a7aff"/><!-- left arm -->
-      <rect x="11" y="5" width="2" height="4" fill="#3a7aff"/><!-- right arm -->
-      <rect x="5" y="10" width="2" height="4" fill="#2255cc"/><!-- left leg -->
-      <rect x="9" y="10" width="2" height="4" fill="#2255cc"/><!-- right leg -->
-      <rect x="12" y="3" width="1" height="6" fill="#c0c0c0"/><!-- sword -->
-      <rect x="11" y="4" width="3" height="1" fill="#c0c0c0"/><!-- guard -->
-      <rect x="7" y="2" width="1" height="1" fill="#222"/><!-- eye L -->
-      <rect x="9" y="2" width="1" height="1" fill="#222"/><!-- eye R -->
-    </svg>
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: WORLD MAP
+═══════════════════════════════════════════════════ -->
+<div id="screen-map" class="screen">
+  <div class="map-top">
+    <div class="pixel" style="font-size:11px;color:var(--accent2)">🗺️ WORLD MAP</div>
+    <div class="map-player-info">
+      <span id="map-name" class="pixel" style="font-size:8px">HERO</span>
+      <span style="font-size:8px;font-family:var(--pixel);color:var(--green)">❤️ <span id="map-hp">3</span></span>
+      <span style="font-size:8px;font-family:var(--pixel);color:var(--accent2)">🪙 <span id="map-coins">0</span></span>
+    </div>
   </div>
-
-  <div class="title-logo">⚔️ MATH QUEST RPG</div>
-  <div class="title-sub">DEFEAT MONSTERS WITH MATH POWER</div>
-
-  <div id="streak-display" class="streak-badge hidden">🔥 <span id="streak-count">0</span>-DAY STREAK!</div>
-
-  <div class="title-buttons">
-    <button class="btn primary" id="continue-btn">▶ CONTINUE</button>
-    <button class="btn" id="newgame-btn">✦ NEW GAME</button>
-    <button class="btn" id="achievements-btn">🏆 ACHIEVEMENTS</button>
-    <button class="btn" id="drill-btn" style="border-color:var(--purple);color:var(--purple)">⚡ FREE DRILL</button>
+  <div id="map-xp-bar-wrap" class="hud-xp-bar-wrap" style="max-width:600px;width:100%;padding:0 16px;">
+    <div class="hud-xp-label">LV <span id="map-level">1</span> — XP: <span id="map-xp">0</span>/<span id="map-xp-max">500</span></div>
+    <div class="hud-xp-bar"><div class="hud-xp-fill" id="map-xp-fill" style="width:0%"></div></div>
   </div>
-
-  <div style="margin-top:20px; font-family:var(--pixel); font-size:7px; color:var(--grey); text-align:center;">
-    TOPICS: FRACTIONS · DECIMALS · LONG DIVISION · MULTIPLICATION
-  </div>
+  <div id="level-grid" class="level-grid"></div>
+  <button class="btn" id="btn-map-back" style="margin-top:12px;font-size:8px;">← TITLE</button>
 </div>
 
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Diagnostic
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-diagnostic">
-  <div class="diag-header">SKILL CHECK</div>
-  <div style="font-family:var(--pixel);font-size:7px;color:var(--grey);text-align:center;">
-    Answer 15 questions so we can customize your adventure
-  </div>
+<!-- ═══════════════════════════════════════════════════
+     GAME VIEWPORT (canvas + overlays)
+═══════════════════════════════════════════════════ -->
+<div id="game-viewport" style="display:none; position:relative; width:100%; max-width:800px; margin:0 auto;">
 
-  <div style="width:100%; max-width:600px;">
-    <div class="diag-progress-wrap">
-      <div class="diag-progress-fill" id="diag-progress" style="width:0%"></div>
-      <div class="diag-progress-text" id="diag-progress-text">0 / 15</div>
+  <!-- Canvas -->
+  <canvas id="game-canvas" width="800" height="500"></canvas>
+
+  <!-- In-game HUD (HTML overlay) -->
+  <div id="game-hud">
+    <div id="hud-hearts"></div>
+    <div id="hud-center">
+      <div id="hud-level-name" class="pixel" style="font-size:7px;color:var(--accent2)"></div>
+      <div id="hud-enemies-left" class="pixel" style="font-size:6px;color:var(--grey)"></div>
+    </div>
+    <div id="hud-right">
+      <span class="pixel" style="font-size:7px;color:var(--accent2)">🪙 <span id="hud-coins">0</span></span>
+      <span class="pixel" style="font-size:7px;color:var(--yellow)">⭐ <span id="hud-stars">0</span></span>
     </div>
   </div>
 
-  <div class="diag-topic-label" id="diag-topic-label">TOPIC: FRACTIONS & DECIMALS</div>
-
-  <!-- Problem area (reuses same layout as battle) -->
-  <div class="problem-panel" style="max-width:600px;width:100%">
-    <div class="problem-text" id="diag-question">Loading...</div>
-    <div id="diag-mc-choices" class="mc-choices hidden"></div>
-    <div class="answer-row" id="diag-answer-row">
-      <input class="answer-input" id="diag-answer-input" type="text"
-             placeholder="Your answer" autocomplete="off" autocorrect="off" spellcheck="false">
-      <button class="btn primary" id="diag-submit-btn">CHECK ↵</button>
-    </div>
-    <div class="hint-box" id="diag-hint"></div>
-    <div id="diag-feedback" style="text-align:center;font-family:var(--pixel);font-size:10px;margin-top:10px;min-height:24px;"></div>
-    <div style="text-align:center;margin-top:8px;">
-      <button class="btn" id="diag-teach-btn" style="font-size:8px;border-color:var(--purple);color:var(--purple);">📖 HOW DO I SOLVE THIS?</button>
-    </div>
+  <!-- Controls hint -->
+  <div id="controls-hint" class="pixel" style="position:absolute;bottom:60px;right:8px;font-size:6px;color:rgba(255,255,255,0.3);pointer-events:none;">
+    ← → move &nbsp; ↑/Space jump
   </div>
 
-  <button class="btn" id="diag-skip-btn" style="font-size:7px;color:var(--grey)">skip (counts as wrong)</button>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: World Map
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-map">
-  <div class="map-header">
-    <div class="map-title">🗺️ WORLD MAP</div>
-    <div class="map-stats">
-      <div class="map-stat">❤️ <span id="map-hp">200</span></div>
-      <div class="map-stat">🪙 <span id="map-gold">0</span></div>
-      <div class="map-stat">✨ <span id="map-xp">0</span></div>
-    </div>
+  <!-- Mobile controls -->
+  <div id="mobile-controls">
+    <button class="mob-btn" id="mob-left">◀</button>
+    <button class="mob-btn" id="mob-jump">▲ JUMP</button>
+    <button class="mob-btn" id="mob-right">▶</button>
   </div>
 
-  <!-- XP bar -->
-  <div class="player-hud-map">
-    <div style="font-family:var(--pixel);font-size:8px;color:var(--accent)">
-      ⚔️ <span id="map-hero-name">HERO</span> &nbsp; LV <span id="map-level">1</span>
-    </div>
-    <div class="hud-xp-bar-wrap">
-      <div class="hud-xp-label">XP: <span id="map-xp-cur">0</span> / <span id="map-xp-max">500</span></div>
-      <div class="hud-xp-bar">
-        <div class="hud-xp-fill" id="map-xp-fill" style="width:0%"></div>
-        <div class="hud-xp-text" id="map-xp-text">0%</div>
+  <!-- ─────────────────────────────────────────────────
+       MATH PROBLEM MODAL
+  ───────────────────────────────────────────────── -->
+  <div id="math-modal" style="display:none;">
+    <div class="math-modal-box">
+      <div id="math-enemy-label" class="pixel" style="font-size:8px;color:var(--red);margin-bottom:8px;">⚔️ ENEMY ENCOUNTER!</div>
+      <div id="math-topic-badge" class="problem-topic-badge">FRACTIONS</div>
+      <div id="math-question" class="math-question-text">Loading...</div>
+      <div id="math-mc-choices" class="mc-choices" style="display:none;"></div>
+      <div id="math-input-row" class="answer-row">
+        <input id="math-answer-input" class="answer-input" type="text"
+               placeholder="Your answer" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="btn primary" id="btn-math-submit">ATTACK ⚔️</button>
+      </div>
+      <div id="math-hint-box" class="hint-box"></div>
+      <div id="math-feedback" style="text-align:center;font-family:var(--pixel);font-size:9px;min-height:20px;margin-top:6px;"></div>
+      <div class="math-action-row">
+        <button class="btn" id="btn-math-hint" style="font-size:7px;">💡 HINT (<span id="math-hint-count">3</span>)</button>
+        <button class="btn" id="btn-math-teach" style="font-size:7px;border-color:var(--purple);color:var(--purple);">📖 HOW DO I SOLVE THIS?</button>
       </div>
     </div>
   </div>
 
-  <div class="dungeon-grid" id="dungeon-grid">
-    <!-- Populated by game.js -->
-  </div>
-
-  <button class="btn" id="map-title-btn" style="margin-top:8px;font-size:8px;">← BACK TO TITLE</button>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Shop (before boss)
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-shop">
-  <div class="pixel" style="font-size:11px;color:var(--accent2);text-align:center;">🏪 DUNGEON SHOP</div>
-  <div style="font-family:var(--pixel);font-size:7px;color:var(--grey);text-align:center;">
-    Prepare before the boss fight!<br>
-    Gold: <span id="shop-gold-display" style="color:var(--accent2)">0</span> 🪙
-  </div>
-
-  <div class="shop-grid">
-    <div class="shop-item">
-      <div class="shop-item-icon">🧪</div>
-      <div class="shop-item-name">HEAL POTION</div>
-      <div class="shop-item-desc">Restore +50 HP during battle</div>
-      <div class="shop-item-price">30 🪙</div>
-      <button class="btn" id="buy-potion-btn" data-cost="30" data-item="potion">BUY</button>
-    </div>
-    <div class="shop-item">
-      <div class="shop-item-icon">💡</div>
-      <div class="shop-item-name">HINT SCROLL</div>
-      <div class="shop-item-desc">Shows the first step. 3x per dungeon.</div>
-      <div class="shop-item-price">20 🪙</div>
-      <button class="btn" id="buy-hint-btn" data-cost="20" data-item="hint">BUY</button>
-    </div>
-    <div class="shop-item">
-      <div class="shop-item-icon">⚡</div>
-      <div class="shop-item-name">SKIP SPELL</div>
-      <div class="shop-item-desc">Skip one problem (once per dungeon)</div>
-      <div class="shop-item-price">50 🪙</div>
-      <button class="btn" id="buy-skip-btn" data-cost="50" data-item="skip">BUY</button>
-    </div>
-  </div>
-
-  <button class="btn primary" id="shop-continue-btn">⚔️ ENTER BOSS BATTLE</button>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Battle
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-battle">
-  <!-- Battle arena -->
-  <div class="battle-arena" id="battle-arena">
-    <div class="battle-bg"></div>
-
-    <!-- Hero side -->
-    <div class="fighter" id="hero-fighter">
-      <svg class="fighter-sprite hero-svg" id="hero-sprite" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated;">
-        <rect x="6" y="1" width="4" height="4" fill="#c0c0f0"/>
-        <rect x="5" y="5" width="6" height="5" fill="#3a7aff"/>
-        <rect x="3" y="5" width="2" height="4" fill="#3a7aff"/>
-        <rect x="11" y="5" width="2" height="4" fill="#3a7aff"/>
-        <rect x="5" y="10" width="2" height="4" fill="#2255cc"/>
-        <rect x="9" y="10" width="2" height="4" fill="#2255cc"/>
-        <rect x="12" y="3" width="1" height="6" fill="#c0c0c0"/>
-        <rect x="11" y="4" width="3" height="1" fill="#c0c0c0"/>
-        <rect x="7" y="2" width="1" height="1" fill="#222"/>
-        <rect x="9" y="2" width="1" height="1" fill="#222"/>
-      </svg>
-      <div class="fighter-name" id="hero-name-display">HERO</div>
-      <div class="hp-bar-wrap">
-        <div class="hp-label">HP <span id="hero-hp-text">200/200</span></div>
-        <div class="hp-bar">
-          <div class="hp-fill high" id="hero-hp-fill" style="width:100%"></div>
+  <!-- ─────────────────────────────────────────────────
+       EXPLANATION MODAL (no answer shown)
+  ───────────────────────────────────────────────── -->
+  <div id="explain-modal" style="display:none;">
+    <div class="explain-modal-box">
+      <div id="explain-modal-header" class="pixel" style="font-size:9px;margin-bottom:12px;color:var(--purple);">📖 HOW TO SOLVE THIS</div>
+      <div id="explain-modal-content" style="overflow-y:auto;max-height:340px;"></div>
+      <div style="margin-top:16px;border-top:2px solid var(--border);padding-top:14px;">
+        <div class="pixel" style="font-size:8px;color:var(--accent2);margin-bottom:8px;">NOW YOU TRY — WHAT'S THE ANSWER?</div>
+        <div class="answer-row" style="justify-content:center;">
+          <input id="explain-answer-input" class="answer-input" type="text"
+                 placeholder="Type your answer" autocomplete="off" autocorrect="off" spellcheck="false">
+          <button class="btn primary" id="btn-explain-submit">CHECK ✓</button>
         </div>
+        <div id="explain-feedback" style="text-align:center;font-family:var(--pixel);font-size:9px;min-height:20px;margin-top:8px;"></div>
+      </div>
+      <button class="btn" id="btn-explain-back" style="font-size:7px;margin-top:10px;width:100%;">← BACK TO QUESTION</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       LEVEL CLEAR OVERLAY
+  ───────────────────────────────────────────────── -->
+  <div id="level-clear-overlay" style="display:none;">
+    <div class="math-modal-box" style="text-align:center;">
+      <div class="pixel" style="font-size:14px;color:var(--accent2);animation:titleFloat 2s infinite;">🎉 LEVEL CLEAR! 🎉</div>
+      <div id="clear-level-name" class="pixel" style="font-size:8px;color:var(--grey);margin:8px 0;"></div>
+      <div class="clear-stats-row">
+        <div class="clear-stat-mini"><div id="cs-coins" class="pixel" style="font-size:14px;color:var(--accent2)">0</div><div style="font-size:11px;color:var(--grey)">COINS</div></div>
+        <div class="clear-stat-mini"><div id="cs-stars" class="pixel" style="font-size:14px;color:var(--yellow)">0</div><div style="font-size:11px;color:var(--grey)">STARS</div></div>
+        <div class="clear-stat-mini"><div id="cs-xp" class="pixel" style="font-size:14px;color:var(--purple)">+0</div><div style="font-size:11px;color:var(--grey)">XP</div></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
+        <button class="btn primary" id="btn-next-level">NEXT LEVEL →</button>
+        <button class="btn" id="btn-back-map">← WORLD MAP</button>
       </div>
     </div>
+  </div>
 
-    <div class="vs-label">VS</div>
-
-    <!-- Enemy side -->
-    <div class="fighter" id="enemy-fighter" style="align-items:flex-end;">
-      <div class="hp-bar-wrap" style="text-align:right;">
-        <div class="hp-label" style="text-align:right;">HP <span id="enemy-hp-text">80/80</span></div>
-        <div class="hp-bar">
-          <div class="hp-fill high" id="enemy-hp-fill" style="width:100%"></div>
-        </div>
+  <!-- GAME OVER OVERLAY -->
+  <div id="gameover-overlay" style="display:none;">
+    <div class="math-modal-box" style="text-align:center;">
+      <div class="pixel" style="font-size:18px;color:var(--red);">💀 GAME OVER</div>
+      <div style="font-size:13px;color:var(--grey);margin:12px 0;font-family:var(--mono);">Your hero has fallen. Every warrior learns from defeat!</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn primary" id="btn-retry-level">↺ TRY AGAIN</button>
+        <button class="btn" id="btn-go-map">← WORLD MAP</button>
       </div>
-      <div class="fighter-name" id="enemy-name-display">FRACTION SPRITE</div>
-      <svg class="fighter-sprite enemy-svg" id="enemy-sprite" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"
-           style="image-rendering:pixelated; transform:scaleX(-1);">
-        <!-- Default enemy: slime -->
-        <ellipse cx="8" cy="10" rx="6" ry="5" fill="#c03030"/>
-        <rect x="3" y="5" width="10" height="5" fill="#c03030"/>
-        <ellipse cx="8" cy="5" rx="5" ry="4" fill="#c03030"/>
-        <circle cx="6" cy="6" r="1.2" fill="#fff"/>
-        <circle cx="10" cy="6" r="1.2" fill="#fff"/>
-        <circle cx="6.4" cy="6.4" r="0.6" fill="#222"/>
-        <circle cx="10.4" cy="6.4" r="0.6" fill="#222"/>
-        <path d="M 6 9 Q 8 11 10 9" stroke="#222" stroke-width="0.8" fill="none"/>
-      </svg>
     </div>
   </div>
 
-  <!-- Wave indicator -->
-  <div class="battle-wave" id="battle-wave">Enemy 1 / 8</div>
-
-  <!-- Problem panel -->
-  <div class="problem-panel" id="battle-problem-panel">
-    <div class="problem-topic-badge" id="battle-topic-badge">FRACTIONS</div>
-    <div class="problem-text" id="battle-question">Loading...</div>
-
-    <!-- MC choices (shown for mc-type problems) -->
-    <div id="battle-mc-choices" class="mc-choices hidden"></div>
-
-    <!-- Numeric input row -->
-    <div class="answer-row" id="battle-answer-row">
-      <input class="answer-input" id="battle-answer-input" type="text"
-             placeholder="Your answer" autocomplete="off" autocorrect="off" spellcheck="false">
-      <button class="btn primary" id="battle-submit-btn">ATTACK ⚔️</button>
-    </div>
-
-    <div class="hint-box" id="battle-hint-box"></div>
-
-    <!-- Action buttons -->
-    <div class="action-row">
-      <button class="btn" id="use-hint-btn" style="font-size:8px;">💡 HINT (<span id="hint-count">3</span>)</button>
-      <button class="btn" id="use-potion-btn" style="font-size:8px;">🧪 POTION (<span id="potion-count">0</span>)</button>
-      <button class="btn" id="use-skip-btn" style="font-size:8px;color:var(--grey);">⚡ SKIP (<span id="skip-count">1</span>)</button>
-      <button class="btn" id="use-teach-btn" style="font-size:8px;border-color:var(--purple);color:var(--purple);">📖 HOW DO I SOLVE THIS?</button>
+  <!-- PAUSE OVERLAY -->
+  <div id="pause-overlay" style="display:none;">
+    <div class="math-modal-box" style="text-align:center;">
+      <div class="pixel" style="font-size:12px;color:var(--accent);">⏸ PAUSED</div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
+        <button class="btn primary" id="btn-resume">▶ RESUME</button>
+        <button class="btn" id="btn-pause-map">← WORLD MAP</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Explanation
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-explain">
-  <div class="explain-header" id="explain-header">❌ NOT QUITE — LET'S WORK THROUGH IT</div>
-
-  <div class="explain-container" id="explain-content">
-    <!-- Populated by buildExplanation() -->
-  </div>
-
-  <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
-    <button class="btn primary" id="explain-retry-btn">✅ GOT IT — TRY AGAIN</button>
-    <button class="btn" id="explain-more-btn" style="border-color:var(--purple);color:var(--purple);">🔍 EXPLAIN MORE</button>
-  </div>
-
-  <div class="explain-more-content" id="explain-more-content">
-    <!-- Populated dynamically -->
-  </div>
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: ACHIEVEMENTS
+═══════════════════════════════════════════════════ -->
+<div id="screen-achievements" class="screen">
+  <div class="pixel" style="font-size:11px;color:var(--accent2);text-align:center;">🏆 ACHIEVEMENTS</div>
+  <div class="pixel" style="font-size:7px;color:var(--grey);text-align:center;margin:6px 0;" id="ach-count"></div>
+  <div id="ach-grid" class="ach-grid"></div>
+  <button class="btn" id="btn-ach-back" style="margin-top:12px;">← BACK</button>
 </div>
 
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Level Clear
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-levelclear">
-  <div class="confetti-wrap" id="confetti-wrap"></div>
-  <div class="clear-title">🎉 DUNGEON CLEARED! 🎉</div>
-  <div style="font-family:var(--pixel);font-size:9px;color:var(--grey);text-align:center;" id="clear-dungeon-name">
-    FRACTION FOREST
-  </div>
-
-  <div class="clear-stats">
-    <div class="clear-stat">
-      <div class="clear-stat-val" id="clear-xp">+0</div>
-      <div class="clear-stat-lbl">XP EARNED</div>
-    </div>
-    <div class="clear-stat">
-      <div class="clear-stat-val" id="clear-gold">+0</div>
-      <div class="clear-stat-lbl">GOLD EARNED</div>
-    </div>
-    <div class="clear-stat">
-      <div class="clear-stat-val" id="clear-accuracy">0%</div>
-      <div class="clear-stat-lbl">ACCURACY</div>
-    </div>
-    <div class="clear-stat" id="clear-bonus-stat" style="display:none">
-      <div class="clear-stat-val" style="color:var(--yellow)">+30 XP</div>
-      <div class="clear-stat-lbl">PERFECT BONUS</div>
-    </div>
-  </div>
-
-  <div id="new-achievement-banner" class="hidden"
-       style="font-family:var(--pixel);font-size:9px;color:var(--accent2);
-              border:2px solid var(--accent2);padding:10px 20px;text-align:center;">
-    🏆 ACHIEVEMENT UNLOCKED: <span id="new-ach-name"></span>
-  </div>
-
-  <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
-    <button class="btn primary" id="clear-continue-btn">NEXT DUNGEON →</button>
-    <button class="btn" id="clear-map-btn">← WORLD MAP</button>
-  </div>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Mini-Test
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-minitest">
-  <div class="minitest-header">📋 MINI-TEST</div>
-  <div style="font-family:var(--pixel);font-size:7px;color:var(--grey);text-align:center;max-width:400px;">
-    10 questions · 90 seconds · Score ≥60% to unlock next zone
-  </div>
-
-  <div class="minitest-timer" id="minitest-timer">1:30</div>
-
-  <div class="diag-progress-wrap" style="max-width:600px;width:100%;">
-    <div class="diag-progress-fill" id="minitest-progress" style="width:0%"></div>
-    <div class="diag-progress-text" id="minitest-progress-text">0 / 10</div>
-  </div>
-
-  <div class="problem-panel" style="max-width:600px;width:100%">
-    <div class="problem-text" id="minitest-question">Loading...</div>
-    <div id="minitest-mc-choices" class="mc-choices hidden"></div>
-    <div class="answer-row" id="minitest-answer-row">
-      <input class="answer-input" id="minitest-answer-input" type="text"
-             placeholder="Your answer" autocomplete="off" autocorrect="off" spellcheck="false">
-      <button class="btn primary" id="minitest-submit-btn">CHECK ↵</button>
-    </div>
-    <div id="minitest-feedback" style="text-align:center;font-family:var(--pixel);font-size:10px;margin-top:10px;min-height:24px;"></div>
-    <div style="text-align:center;margin-top:8px;">
-      <button class="btn" id="minitest-teach-btn" style="font-size:8px;border-color:var(--purple);color:var(--purple);">📖 HOW DO I SOLVE THIS?</button>
-    </div>
-  </div>
-
-  <!-- Results panel (shown after test) -->
-  <div id="minitest-results" class="minitest-score-panel hidden" style="max-width:600px;width:100%">
-    <div style="font-family:var(--pixel);font-size:10px;text-align:center;color:var(--white);">
-      RESULT: <span id="minitest-score-text">0/10</span>
-    </div>
-    <div id="minitest-pass-fail" style="font-family:var(--pixel);font-size:12px;text-align:center;margin-top:8px;"></div>
-    <div class="subtopic-breakdown" id="minitest-breakdown"></div>
-    <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
-      <button class="btn primary" id="minitest-continue-btn">CONTINUE →</button>
-      <button class="btn" id="minitest-retry-btn">↺ RETRY TEST</button>
-    </div>
-  </div>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Game Over
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-gameover">
-  <div class="gameover-title">💀 GAME OVER 💀</div>
-  <div style="font-family:var(--pixel);font-size:8px;color:var(--grey);text-align:center;max-width:400px;line-height:2;">
-    YOUR HERO HAS FALLEN...<br>
-    BUT EVERY GREAT WARRIOR LEARNS FROM DEFEAT!
-  </div>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-    <button class="btn primary" id="gameover-retry-btn">↺ TRY AGAIN</button>
-    <button class="btn" id="gameover-map-btn">← WORLD MAP</button>
-  </div>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Achievements
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-achievements">
-  <div style="font-family:var(--pixel);font-size:11px;color:var(--accent2);text-align:center;">🏆 ACHIEVEMENTS</div>
-  <div style="font-family:var(--pixel);font-size:7px;color:var(--grey);text-align:center;" id="ach-count-text">
-    0 / 20 unlocked
-  </div>
-  <div class="ach-grid" id="ach-grid">
-    <!-- Populated by game.js -->
-  </div>
-  <button class="btn" id="ach-back-btn">← BACK</button>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────
-     SCREEN: Free Drill
-───────────────────────────────────────────────────────────── -->
-<div class="screen" id="screen-drill">
-  <div style="font-family:var(--pixel);font-size:10px;color:var(--purple);text-align:center;">⚡ FREE DRILL</div>
-  <div style="font-family:var(--pixel);font-size:7px;color:var(--grey);text-align:center;max-width:400px;">
-    Unlimited practice — no HP, no pressure. XP still earned!
-  </div>
-
-  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-    <button class="btn" id="drill-fractions-btn" style="border-color:var(--accent);">🔢 FRACTIONS</button>
-    <button class="btn" id="drill-division-btn"  style="border-color:var(--green);">➗ DIVISION</button>
-    <button class="btn" id="drill-multiply-btn"  style="border-color:var(--accent2);">✖️ MULTIPLY</button>
-  </div>
-
-  <div class="problem-panel" id="drill-problem-panel" style="max-width:600px;width:100%">
-    <div class="problem-topic-badge" id="drill-topic-badge">FRACTIONS</div>
-    <div class="problem-text" id="drill-question">Press a topic button to start!</div>
-    <div id="drill-mc-choices" class="mc-choices hidden"></div>
-    <div class="answer-row" id="drill-answer-row" style="display:none;">
-      <input class="answer-input" id="drill-answer-input" type="text"
-             placeholder="Your answer" autocomplete="off" autocorrect="off" spellcheck="false">
-      <button class="btn primary" id="drill-submit-btn">CHECK ↵</button>
-    </div>
-    <div id="drill-feedback" style="text-align:center;font-family:var(--pixel);font-size:10px;margin-top:10px;min-height:24px;"></div>
-    <div id="drill-explain-panel" class="hidden" style="margin-top:12px;"></div>
-    <button class="btn" id="drill-next-btn" style="display:none;margin-top:12px;">NEXT PROBLEM →</button>
-  </div>
-
-  <div style="font-family:var(--pixel);font-size:8px;color:var(--grey);text-align:center;">
-    STREAK: <span id="drill-streak" style="color:var(--green)">0</span> correct in a row
-  </div>
-
-  <button class="btn" id="drill-back-btn">← BACK</button>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────
-     Toast container (appended dynamically)
-───────────────────────────────────────────────────────────── -->
-<div id="toast-container"></div>
-
-<!-- ─────────────────────────────────────────────────────────
-     Scripts
-───────────────────────────────────────────────────────────── -->
-<script src="problems.js"></script>
-<script src="game.js"></script>
-
-<!-- Error catcher — shows any JS crash visibly on screen -->
+<!-- Error catcher -->
 <script>
 window.addEventListener('error', function(e) {
-  document.body.innerHTML += '<div style="position:fixed;top:20px;left:20px;right:20px;background:#400;color:#ff8;font-family:monospace;font-size:13px;padding:20px;border:2px solid red;z-index:9999;white-space:pre-wrap;">JS ERROR: ' + e.message + '\nFile: ' + e.filename + '\nLine: ' + e.lineno + '</div>';
+  document.body.innerHTML += '<div style="position:fixed;top:20px;left:20px;right:20px;background:#400;color:#ff8;font-family:monospace;font-size:13px;padding:20px;border:2px solid red;z-index:9999;white-space:pre-wrap;">JS ERROR: ' + e.message + '\nFile: ' + (e.filename||'') + '\nLine: ' + e.lineno + '</div>';
 });
 </script>
-
+<script src="problems.js"></script>
+<script src="game.js"></script>
 </body>
 </html>

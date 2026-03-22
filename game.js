@@ -1,1421 +1,1669 @@
 // ============================================================
-// MATH QUEST RPG — Game Engine
+// MATH QUEST — Side-scrolling Platformer Engine
 // ============================================================
-(function() {
+(function () {
 'use strict';
 
-const { checkAnswer, buildExplanation, DIAGNOSTIC_BANK, ALL_PROBLEMS,
-        getProblemsBySubtopic, generateFractionProblem,
-        generateDivisionProblem, generateMultiplicationProblem } = window.MathProblems;
+const MP = window.MathProblems;
 
-// ── Constants ─────────────────────────────────────────────
-const SAVE_KEY = 'mathQuestSave';
+// ── Canvas ─────────────────────────────────────────────────
+const canvas = document.getElementById('game-canvas');
+const ctx    = canvas.getContext('2d');
+const CW = 800, CH = 500;
+canvas.width = CW; canvas.height = CH;
 
-const XP_THRESHOLDS = [0,500,1200,2200,3500,5200,7200,9500,12500,16000,20000];
+function resizeCanvas() {
+  const wrap = document.getElementById('game-viewport');
+  if (!wrap || !wrap.style.display || wrap.style.display === 'none') return;
+  const scale = Math.min(window.innerWidth / CW, (window.innerHeight - 10) / CH);
+  const w = Math.floor(CW * scale), h = Math.floor(CH * scale);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  wrap.style.maxWidth = w + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
 
-const DUNGEON_DEFS = [
-  { id:1,  name:"Fraction Forest",     icon:"🌲", topic:"A", subtopics:["A1"],        difficulty:1, boss:false, isMiniTest:false },
-  { id:2,  name:"Decimal Desert",      icon:"🏜️", topic:"A", subtopics:["A2","A6"],   difficulty:1, boss:false, isMiniTest:false },
-  { id:3,  name:"Conversion Cavern",   icon:"🕳️", topic:"A", subtopics:["A3","A4","A5"], difficulty:2, boss:true,  isMiniTest:false },
-  { id:"mt1", name:"MINI-TEST I",      icon:"📋", topic:null, subtopics:[],           difficulty:0, boss:false, isMiniTest:true,  miniTestTopics:["A1","A2","A3"] },
-  { id:4,  name:"Division Dungeon",    icon:"⚙️", topic:"B", subtopics:["B1","B2"],   difficulty:1, boss:false, isMiniTest:false },
-  { id:5,  name:"Decimal Division Den",icon:"🔢", topic:"B", subtopics:["B3","B4","B5"],difficulty:2,boss:false, isMiniTest:false },
-  { id:6,  name:"Division Boss Tower", icon:"🗼", topic:"B", subtopics:["B6","B7","B8"],difficulty:2,boss:true,  isMiniTest:false },
-  { id:"mt2", name:"MINI-TEST II",     icon:"📋", topic:null, subtopics:[],           difficulty:0, boss:false, isMiniTest:true,  miniTestTopics:["B1","B3","B5"] },
-  { id:7,  name:"Multiply Marsh",      icon:"🌿", topic:"C", subtopics:["C1","C2","C3"],difficulty:1,boss:false, isMiniTest:false },
-  { id:8,  name:"Carry Kingdom",       icon:"👑", topic:"C", subtopics:["C4","C5"],   difficulty:2, boss:false, isMiniTest:false },
-  { id:9,  name:"Decimal Multiply",    icon:"💧", topic:"C", subtopics:["C6","C7","C8"],difficulty:2,boss:true,  isMiniTest:false },
-  { id:"mt3", name:"MINI-TEST III",    icon:"📋", topic:null, subtopics:[],           difficulty:0, boss:false, isMiniTest:true,  miniTestTopics:["C1","C4","C7"] },
-  { id:10, name:"Grand Gauntlet",      icon:"🏰", topic:null, subtopics:["A1","B1","C1","A3","B5","C4"], difficulty:3, boss:true, isMiniTest:false },
-];
-
-// Enemy designs per dungeon
-const ENEMY_DESIGNS = {
-  1:  { name:"Fraction Sprite",    color:"#5b8dee", emoji:"🧚" },
-  2:  { name:"Decimal Djinn",      color:"#e8a838", emoji:"🌀" },
-  3:  { name:"Repeating Dragon",   color:"#e84040", emoji:"🐉" },
-  4:  { name:"Long Divide Lich",   color:"#7040c0", emoji:"💀" },
-  5:  { name:"Zero-Slot Zombie",   color:"#406040", emoji:"🧟" },
-  6:  { name:"Grand Divide Golem", color:"#c04040", emoji:"🪨" },
-  7:  { name:"Two-Digit Troll",    color:"#408040", emoji:"👹" },
-  8:  { name:"Carry Count",        color:"#4080c0", emoji:"🔢" },
-  9:  { name:"Decimal Drake",      color:"#8040c0", emoji:"🦎" },
-  10: { name:"FINAL BOSS",         color:"#c00000", emoji:"👾" },
-};
-
-const ACHIEVEMENTS_DEF = [
-  { id:"first_blood",      name:"First Blood",     icon:"⚔️",  desc:"Defeat your first enemy" },
-  { id:"flawless_1",       name:"Flawless",        icon:"🛡️",  desc:"Complete a dungeon without taking damage" },
-  { id:"speed_solver",     name:"Speed Solver",    icon:"⚡",   desc:"Answer 5 problems in under 30 seconds" },
-  { id:"comeback_kid",     name:"Comeback Kid",    icon:"💪",   desc:"Win a boss fight with <20 HP" },
-  { id:"division_master",  name:"Division Master", icon:"➗",   desc:"50 correct division answers" },
-  { id:"decimal_wizard",   name:"Decimal Wizard",  icon:"🧙",   desc:"Complete all fraction/decimal dungeons" },
-  { id:"grand_champion",   name:"Grand Champion",  icon:"🏆",   desc:"Complete the Grand Gauntlet (Level 10)" },
-  { id:"perfect_run",      name:"Perfect Run",     icon:"✨",   desc:"100% accuracy in a dungeon" },
-  { id:"mini_ace",         name:"Mini-Test Ace",   icon:"📋",   desc:"Score 100% on a mini-test" },
-  { id:"streak_3",         name:"On Fire",         icon:"🔥",   desc:"3-day login streak" },
-  { id:"streak_7",         name:"Week Warrior",    icon:"📅",   desc:"7-day login streak" },
-  { id:"problem_50",       name:"Problem Solver",  icon:"🔢",   desc:"Solve 50 problems total" },
-  { id:"problem_100",      name:"Century Club",    icon:"💯",   desc:"Solve 100 problems total" },
-  { id:"problem_200",      name:"Math Machine",    icon:"🤖",   desc:"Solve 200 problems total" },
-  { id:"no_hints",         name:"No Help Needed",  icon:"🎯",   desc:"Complete a dungeon without using any hints" },
-  { id:"gold_100",         name:"Treasure Hunter", icon:"🪙",   desc:"Accumulate 100 gold" },
-  { id:"level_5",          name:"Veteran",         icon:"🎖️",   desc:"Reach hero level 5" },
-  { id:"level_10",         name:"Legend",          icon:"👑",   desc:"Reach hero level 10" },
-  { id:"fraction_all",     name:"Fraction Fanatic",icon:"½",    desc:"Complete all fraction subtopic drills" },
-  { id:"diagnostic_done",  name:"Assessed",        icon:"📊",   desc:"Complete the diagnostic quiz" },
-];
-
-// ── State ─────────────────────────────────────────────────
-let G = null; // game save state
-
-function defaultSave(playerName) {
+// ── Save / Load ────────────────────────────────────────────
+const SAVE_KEY = 'mathQuestV4';
+function loadSave() {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY)); } catch(_){ return null; }
+}
+function writeSave() { if (G) localStorage.setItem(SAVE_KEY, JSON.stringify(G)); }
+function defaultSave(name) {
   return {
-    version: 3,
-    playerName: playerName || "HERO",
-    heroLevel: 1,
-    heroXP: 0,
-    heroMaxXP: 500,
-    gold: 0,
-    hp: 200,
-    maxHp: 200,
-    spells: { hint: 3, skip: 1, potion: 0 },
-    diagnosticDone: false,
-    topicOrder: ["A","B","C"],
-    dungeonsCompleted: [],
-    dungeonsUnlocked: [1],
-    subtopicScores: {},      // { "A1": { correct:0, attempts:0 } }
+    playerName: name || 'HERO',
+    heroLevel: 1, heroXP: 0, heroMaxXP: 500,
+    coins: 0, stars: 0,
+    hp: 3, maxHp: 3,
+    hintsLeft: 5,
+    levelsUnlocked: [1],
+    levelsCompleted: [],
     achievements: [],
-    streak: { current: 0, best: 0, lastDate: null },
-    totalProblemsCorrect: 0,
-    totalProblemsAttempted: 0,
-    dungeonStars: {},        // { dungeonId: 1|2|3 }
+    streak: { current:0, best:0, lastDate:null },
+    totalCorrect: 0, totalAttempted: 0,
   };
 }
 
-function saveGame() {
-  if (G) localStorage.setItem(SAVE_KEY, JSON.stringify(G));
-}
+let G = null;
+const XP_TABLE = [0,500,1200,2200,3500,5200,7200,9500,12500,16000,20000];
 
-function loadGame() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(_) {}
-  return null;
-}
-
-// ── Battle State ──────────────────────────────────────────
-let BS = {
-  dungeon: null,
-  problems: [],        // all problems for this run
-  currentIdx: 0,
-  enemyIdx: 0,         // which enemy (0–7 regular, 8 = boss)
-  enemyHp: 0,
-  enemyMaxHp: 0,
-  heroHpAtStart: 200,
-  wrongCount: 0,
-  correctCount: 0,
-  totalCount: 0,
-  hintUsed: false,
-  hintsThisDungeon: 0,
-  skipsThisDungeon: 0,
-  tookDamage: false,
-  isBoss: false,
-  bossHitsLeft: 3,
-  bossHitsNeeded: 3,
-  pendingProblem: null, // the problem we show after explanation
-  speedTracker: [],    // timestamps of last 5 correct answers
-};
-
-// ── Diagnostic State ──────────────────────────────────────
-let DS = {
-  questions: [],
-  current: 0,
-  scores: { A: 0, B: 0, C: 0 },
-};
-
-// ── Mini-Test State ───────────────────────────────────────
-let MT = {
-  questions: [],
-  current: 0,
-  correct: 0,
-  subtopicHits: {},
-  subtopicTotal: {},
-  timerInterval: null,
-  timeLeft: 90,
-  dungeonId: null,
-};
-
-// ── Drill State ───────────────────────────────────────────
-let DR = {
-  topic: null,
-  current: null,
-  streak: 0,
-};
-
-// ═════════════════════════════════════════════════════════════
-// SCREEN MANAGER
-// ═════════════════════════════════════════════════════════════
-const screens = {
-  name:         document.getElementById('screen-name'),
-  title:        document.getElementById('screen-title'),
-  diagnostic:   document.getElementById('screen-diagnostic'),
-  map:          document.getElementById('screen-map'),
-  shop:         document.getElementById('screen-shop'),
-  battle:       document.getElementById('screen-battle'),
-  explain:      document.getElementById('screen-explain'),
-  levelclear:   document.getElementById('screen-levelclear'),
-  minitest:     document.getElementById('screen-minitest'),
-  gameover:     document.getElementById('screen-gameover'),
-  achievements: document.getElementById('screen-achievements'),
-  drill:        document.getElementById('screen-drill'),
-};
-const hudBar = document.getElementById('hud-bar');
-
-function showScreen(name) {
-  Object.values(screens).forEach(s => s.classList.remove('active'));
-  if (screens[name]) screens[name].classList.add('active');
-
-  const showHud = ['battle','minitest','explain'].includes(name);
-  hudBar.classList.toggle('hidden', !showHud);
-  if (showHud) updateHUD();
-}
-
-// ═════════════════════════════════════════════════════════════
-// HUD
-// ═════════════════════════════════════════════════════════════
-function updateHUD() {
+function addXP(n) {
   if (!G) return;
-  el('hud-level').textContent   = G.heroLevel;
-  el('hud-hp').textContent      = G.hp;
-  el('hud-maxhp').textContent   = G.maxHp;
-  el('hud-gold').textContent    = G.gold;
-  el('hud-xp').textContent      = G.heroXP;
-  el('hud-xpmax').textContent   = G.heroMaxXP;
-  el('hud-potions').textContent = G.spells.potion;
-  el('hud-hints').textContent   = G.spells.hint;
-  el('hud-skips').textContent   = G.spells.skip;
+  G.heroXP += n;
+  while (G.heroLevel < 10 && G.heroXP >= G.heroMaxXP) {
+    G.heroXP -= G.heroMaxXP;
+    G.heroLevel++;
+    G.heroMaxXP = XP_TABLE[G.heroLevel] || 20000;
+    toast('🎉 LEVEL UP! Hero Level ' + G.heroLevel + '!');
+  }
 }
 
-// ═════════════════════════════════════════════════════════════
-// INIT
-// ═════════════════════════════════════════════════════════════
-function init() {
-  bindAllButtons();
+// ── Input ──────────────────────────────────────────────────
+const keys = { left:false, right:false, up:false };
+let jumpConsumed = false;
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft'  || e.key === 'a') keys.left  = true;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+  if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') {
+    keys.up = true;
+    if (gameState === 'playing') e.preventDefault();
+  }
+  if (e.key === 'Escape') togglePause();
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft'  || e.key === 'a') keys.left  = false;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+  if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') {
+    keys.up = false; jumpConsumed = false;
+  }
+});
 
-  const saved = loadGame();
-  if (saved) {
-    G = saved;
-    updateStreak();
-    showScreen('title');
-    updateTitleScreen();
+// Mobile touch controls
+function bindMobile() {
+  const btnL = document.getElementById('mob-left');
+  const btnR = document.getElementById('mob-right');
+  const btnJ = document.getElementById('mob-jump');
+  if (!btnL) return;
+  const hold = (el, key) => {
+    el.addEventListener('touchstart',  e => { keys[key]=true;  e.preventDefault(); }, {passive:false});
+    el.addEventListener('touchend',    e => { keys[key]=false; if(key==='up') jumpConsumed=false; e.preventDefault(); }, {passive:false});
+    el.addEventListener('touchcancel', e => { keys[key]=false; e.preventDefault(); }, {passive:false});
+  };
+  hold(btnL, 'left');
+  hold(btnR, 'right');
+  hold(btnJ, 'up');
+}
+
+// ── LEVEL DEFINITIONS ──────────────────────────────────────
+// Each level: platforms, enemies (with subtopic), collectibles, portal, theme
+const LEVEL_DEFS = [
+  {
+    id:1, name:"Fraction Forest", topic:"A",
+    theme:{ sky:['#0a1f0a','#1a3a1a'], ground:'#3a5a2a', dirt:'#2a3a1a', accent:'#5aaa3a' },
+    bgTrees: true,
+    subtopics:['A1','A2'],
+    enemyLabel:'🌀 Fraction Sprite',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:180, y:340, w:120,  h:18},
+      {x:370, y:300, w:100,  h:18},
+      {x:520, y:360, w:90,   h:18},
+      {x:680, y:290, w:110,  h:18},
+      {x:840, y:350, w:100,  h:18},
+      {x:1000,y:280, w:120,  h:18},
+      {x:1180,y:340, w:100,  h:18},
+      {x:1350,y:300, w:110,  h:18},
+      {x:1550,y:260, w:90,   h:18},
+      {x:1700,y:340, w:120,  h:18},
+      {x:1900,y:290, w:100,  h:18},
+      {x:2080,y:350, w:110,  h:18},
+      {x:2250,y:300, w:100,  h:18},
+      {x:2450,y:260, w:120,  h:18},
+      {x:2650,y:330, w:100,  h:18},
+      {x:2850,y:280, w:110,  h:18},
+    ],
+    enemies:[
+      {x:390, y:252, subtopic:'A1'},
+      {x:700, y:242, subtopic:'A1'},
+      {x:1020,y:232, subtopic:'A2'},
+      {x:1370,y:252, subtopic:'A1'},
+      {x:1720,y:292, subtopic:'A2'},
+      {x:2100,y:302, subtopic:'A2'},
+      {x:2670,y:282, subtopic:'A1'},
+      {x:2870,y:232, subtopic:'A2'},
+    ],
+    collectibles: genCoinsOnPlatforms([
+      {x:200,y:340,w:120},{x:380,y:300,w:100},{x:540,y:360,w:90},{x:700,y:290,w:110},
+      {x:1010,y:280,w:120},{x:1360,y:300,w:110},{x:1560,y:260,w:90},{x:1710,y:340,w:120},
+    ], ['hint','hint','hp','shield']),
+    portalX: 3100,
+  },
+  {
+    id:2, name:"Decimal Desert", topic:"A",
+    theme:{ sky:['#1a1000','#3a2800'], ground:'#7a6030', dirt:'#5a4020', accent:'#c0a050' },
+    bgCacti: true,
+    subtopics:['A3','A4','A5'],
+    enemyLabel:'🌀 Decimal Djinn',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:150, y:350, w:110,  h:18},
+      {x:320, y:290, w:100,  h:18},
+      {x:500, y:360, w:90,   h:18},
+      {x:660, y:300, w:110,  h:18},
+      {x:830, y:260, w:100,  h:18},
+      {x:1010,y:340, w:120,  h:18},
+      {x:1200,y:290, w:100,  h:18},
+      {x:1380,y:350, w:90,   h:18},
+      {x:1560,y:280, w:110,  h:18},
+      {x:1750,y:310, w:100,  h:18},
+      {x:1940,y:270, w:120,  h:18},
+      {x:2130,y:340, w:100,  h:18},
+      {x:2320,y:290, w:110,  h:18},
+      {x:2520,y:250, w:100,  h:18},
+      {x:2720,y:310, w:120,  h:18},
+      {x:2920,y:270, w:100,  h:18},
+    ],
+    enemies:[
+      {x:340, y:242, subtopic:'A3'},
+      {x:680, y:252, subtopic:'A4'},
+      {x:850, y:212, subtopic:'A3'},
+      {x:1220,y:242, subtopic:'A5'},
+      {x:1580,y:232, subtopic:'A4'},
+      {x:1760,y:262, subtopic:'A3'},
+      {x:2140,y:292, subtopic:'A5'},
+      {x:2940,y:222, subtopic:'A4'},
+    ],
+    collectibles: genCoinsOnPlatforms([
+      {x:160,y:350,w:110},{x:330,y:290,w:100},{x:510,y:360,w:90},{x:840,y:260,w:100},
+      {x:1020,y:340,w:120},{x:1390,y:350,w:90},{x:1570,y:280,w:110},{x:1760,y:310,w:100},
+    ], ['hint','hp','hint','shield']),
+    portalX: 3100,
+  },
+  {
+    id:3, name:"Conversion Cavern", topic:"A",
+    theme:{ sky:['#050508','#0a0a14'], ground:'#2a2a4a', dirt:'#1a1a2a', accent:'#6060cc' },
+    bgCave: true,
+    subtopics:['A6','A7','A8'],
+    enemyLabel:'🐉 Repeating Dragon',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:160, y:360, w:100,  h:18},
+      {x:320, y:300, w:90,   h:18},
+      {x:480, y:370, w:100,  h:18},
+      {x:650, y:310, w:110,  h:18},
+      {x:820, y:260, w:90,   h:18},
+      {x:990, y:340, w:100,  h:18},
+      {x:1160,y:290, w:110,  h:18},
+      {x:1340,y:360, w:90,   h:18},
+      {x:1520,y:290, w:100,  h:18},
+      {x:1700,y:250, w:110,  h:18},
+      {x:1880,y:320, w:90,   h:18},
+      {x:2060,y:270, w:100,  h:18},
+      {x:2250,y:340, w:110,  h:18},
+      {x:2450,y:280, w:100,  h:18},
+      {x:2650,y:320, w:90,   h:18},
+      {x:2850,y:260, w:110,  h:18},
+    ],
+    enemies:[
+      {x:340, y:252, subtopic:'A6'},
+      {x:670, y:262, subtopic:'A7'},
+      {x:840, y:212, subtopic:'A8'},
+      {x:1180,y:242, subtopic:'A6'},
+      {x:1540,y:242, subtopic:'A7'},
+      {x:1720,y:202, subtopic:'A8'},
+      {x:2270,y:292, subtopic:'A6'},
+      {x:2870,y:212, subtopic:'A7'},
+    ],
+    collectibles: genCoinsOnPlatforms([
+      {x:170,y:360,w:100},{x:330,y:300,w:90},{x:660,y:310,w:110},{x:830,y:260,w:90},
+      {x:1000,y:340,w:100},{x:1350,y:360,w:90},{x:1530,y:290,w:100},{x:1710,y:250,w:110},
+    ], ['hp','hint','shield','hint']),
+    portalX: 3100,
+  },
+  {
+    id:4, name:"Division Dungeon", topic:"B",
+    theme:{ sky:['#0a0005','#14000a'], ground:'#3a1a2a', dirt:'#2a0a1a', accent:'#8a2a5a' },
+    bgDungeon: true,
+    subtopics:['B1','B2','B3'],
+    enemyLabel:'💀 Division Lich',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:200, y:350, w:110,  h:18},
+      {x:380, y:300, w:100,  h:18},
+      {x:560, y:370, w:90,   h:18},
+      {x:720, y:310, w:110,  h:18},
+      {x:900, y:260, w:100,  h:18},
+      {x:1080,y:340, w:120,  h:18},
+      {x:1270,y:290, w:100,  h:18},
+      {x:1460,y:360, w:90,   h:18},
+      {x:1640,y:290, w:110,  h:18},
+      {x:1830,y:250, w:100,  h:18},
+      {x:2020,y:320, w:110,  h:18},
+      {x:2210,y:270, w:100,  h:18},
+      {x:2400,y:340, w:90,   h:18},
+      {x:2590,y:280, w:110,  h:18},
+      {x:2780,y:310, w:100,  h:18},
+      {x:2970,y:260, w:110,  h:18},
+    ],
+    enemies:[
+      {x:400, y:252, subtopic:'B1'},
+      {x:740, y:262, subtopic:'B2'},
+      {x:920, y:212, subtopic:'B1'},
+      {x:1290,y:242, subtopic:'B3'},
+      {x:1660,y:242, subtopic:'B2'},
+      {x:1850,y:202, subtopic:'B3'},
+      {x:2220,y:222, subtopic:'B1'},
+      {x:2990,y:212, subtopic:'B3'},
+    ],
+    collectibles: genCoinsOnPlatforms([
+      {x:210,y:350,w:110},{x:390,y:300,w:100},{x:730,y:310,w:110},{x:910,y:260,w:100},
+      {x:1090,y:340,w:120},{x:1470,y:360,w:90},{x:1650,y:290,w:110},{x:1840,y:250,w:100},
+    ], ['hint','hp','hint','shield']),
+    portalX: 3100,
+  },
+  {
+    id:5, name:"Division Boss Tower", topic:"B",
+    theme:{ sky:['#080008','#0f000f'], ground:'#3a0a3a', dirt:'#200020', accent:'#aa00aa' },
+    bgTower: true,
+    subtopics:['B4','B5','B6','B7','B8'],
+    enemyLabel:'🪨 Divide Golem',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:150, y:360, w:100,  h:18},
+      {x:310, y:300, w:90,   h:18},
+      {x:470, y:370, w:100,  h:18},
+      {x:630, y:310, w:110,  h:18},
+      {x:810, y:255, w:90,   h:18},
+      {x:980, y:335, w:110,  h:18},
+      {x:1160,y:280, w:100,  h:18},
+      {x:1350,y:350, w:90,   h:18},
+      {x:1530,y:280, w:110,  h:18},
+      {x:1720,y:240, w:100,  h:18},
+      {x:1910,y:310, w:90,   h:18},
+      {x:2100,y:260, w:110,  h:18},
+      {x:2300,y:330, w:100,  h:18},
+      {x:2500,y:270, w:90,   h:18},
+      {x:2700,y:300, w:110,  h:18},
+      {x:2900,y:250, w:100,  h:18},
+    ],
+    enemies:[
+      {x:330, y:252, subtopic:'B4'},
+      {x:650, y:262, subtopic:'B5'},
+      {x:830, y:207, subtopic:'B6'},
+      {x:1180,y:232, subtopic:'B7'},
+      {x:1550,y:232, subtopic:'B5'},
+      {x:1740,y:192, subtopic:'B8'},
+      {x:2120,y:212, subtopic:'B6'},
+      {x:2920,y:202, subtopic:'B8'},
+    ],
+    collectibles: genCoinsOnPlatforms([
+      {x:160,y:360,w:100},{x:320,y:300,w:90},{x:640,y:310,w:110},{x:820,y:255,w:90},
+      {x:990,y:335,w:110},{x:1360,y:350,w:90},{x:1540,y:280,w:110},{x:1730,y:240,w:100},
+    ], ['hint','hp','hint','shield']),
+    portalX: 3100,
+  },
+  {
+    id:6, name:"Multiply Marsh", topic:"C",
+    theme:{ sky:['#001008','#002810'], ground:'#1a4a1a', dirt:'#0a2a0a', accent:'#40aa40' },
+    bgMarsh: true,
+    subtopics:['C1','C2','C3'],
+    enemyLabel:'👹 Two-Digit Troll',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:180, y:345, w:110,  h:18},
+      {x:360, y:295, w:100,  h:18},
+      {x:540, y:365, w:90,   h:18},
+      {x:700, y:305, w:110,  h:18},
+      {x:880, y:255, w:100,  h:18},
+      {x:1060,y:335, w:120,  h:18},
+      {x:1250,y:285, w:100,  h:18},
+      {x:1440,y:355, w:90,   h:18},
+      {x:1620,y:285, w:110,  h:18},
+      {x:1810,y:245, w:100,  h:18},
+      {x:2000,y:315, w:110,  h:18},
+      {x:2190,y:265, w:100,  h:18},
+      {x:2380,y:335, w:90,   h:18},
+      {x:2570,y:275, w:110,  h:18},
+      {x:2760,y:305, w:100,  h:18},
+      {x:2950,y:255, w:110,  h:18},
+    ],
+    enemies:[
+      {x:380, y:247, subtopic:'C1'},
+      {x:720, y:257, subtopic:'C2'},
+      {x:900, y:207, subtopic:'C3'},
+      {x:1270,y:237, subtopic:'C1'},
+      {x:1640,y:237, subtopic:'C2'},
+      {x:1830,y:197, subtopic:'C3'},
+      {x:2210,y:217, subtopic:'C1'},
+      {x:2970,y:207, subtopic:'C2'},
+    ],
+    collectibles: genCoinsOnPlatforms([
+      {x:190,y:345,w:110},{x:370,y:295,w:100},{x:710,y:305,w:110},{x:890,y:255,w:100},
+      {x:1070,y:335,w:120},{x:1450,y:355,w:90},{x:1630,y:285,w:110},{x:1820,y:245,w:100},
+    ], ['hint','hp','hint','shield']),
+    portalX: 3100,
+  },
+  {
+    id:7, name:"Carry Kingdom", topic:"C",
+    theme:{ sky:['#0a0810','#1a1828'], ground:'#3a3060', dirt:'#2a2040', accent:'#8070cc' },
+    bgKingdom: true,
+    subtopics:['C4','C5','C6'],
+    enemyLabel:'🔢 Carry Count',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:160, y:355, w:100,  h:18},
+      {x:320, y:300, w:90,   h:18},
+      {x:480, y:370, w:100,  h:18},
+      {x:640, y:310, w:110,  h:18},
+      {x:820, y:260, w:90,   h:18},
+      {x:990, y:340, w:100,  h:18},
+      {x:1170,y:290, w:110,  h:18},
+      {x:1360,y:360, w:90,   h:18},
+      {x:1540,y:290, w:100,  h:18},
+      {x:1730,y:250, w:110,  h:18},
+      {x:1920,y:320, w:90,   h:18},
+      {x:2110,y:270, w:100,  h:18},
+      {x:2310,y:340, w:110,  h:18},
+      {x:2510,y:280, w:100,  h:18},
+      {x:2710,y:310, w:90,   h:18},
+      {x:2910,y:260, w:110,  h:18},
+    ],
+    enemies:[
+      {x:340, y:252, subtopic:'C4'},
+      {x:660, y:262, subtopic:'C5'},
+      {x:840, y:212, subtopic:'C6'},
+      {x:1190,y:242, subtopic:'C4'},
+      {x:1560,y:242, subtopic:'C5'},
+      {x:1750,y:202, subtopic:'C6'},
+      {x:2130,y:222, subtopic:'C4'},
+      {x:2930,y:212, subtopic:'C5'},
+    ],
+    collectibles: genCoinsOnPlatforms([
+      {x:170,y:355,w:100},{x:330,y:300,w:90},{x:650,y:310,w:110},{x:830,y:260,w:90},
+      {x:1000,y:340,w:100},{x:1370,y:360,w:90},{x:1550,y:290,w:100},{x:1740,y:250,w:110},
+    ], ['hint','hp','hint','shield']),
+    portalX: 3100,
+  },
+  {
+    id:8, name:"Decimal Multiply", topic:"C",
+    theme:{ sky:['#000a10','#001428'], ground:'#1a3050', dirt:'#0a1828', accent:'#3080cc' },
+    bgOcean: true,
+    subtopics:['C7','C8','C9','C10'],
+    enemyLabel:'🦎 Decimal Drake',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:150, y:360, w:110,  h:18},
+      {x:320, y:305, w:100,  h:18},
+      {x:490, y:375, w:90,   h:18},
+      {x:650, y:315, w:110,  h:18},
+      {x:830, y:265, w:100,  h:18},
+      {x:1010,y:345, w:120,  h:18},
+      {x:1200,y:295, w:100,  h:18},
+      {x:1390,y:365, w:90,   h:18},
+      {x:1570,y:295, w:110,  h:18},
+      {x:1760,y:255, w:100,  h:18},
+      {x:1950,y:325, w:90,   h:18},
+      {x:2140,y:275, w:110,  h:18},
+      {x:2340,y:345, w:100,  h:18},
+      {x:2540,y:285, w:90,   h:18},
+      {x:2740,y:315, w:110,  h:18},
+      {x:2940,y:265, w:100,  h:18},
+    ],
+    enemies:[
+      {x:340, y:257, subtopic:'C7'},
+      {x:670, y:267, subtopic:'C8'},
+      {x:850, y:217, subtopic:'C9'},
+      {x:1220,y:247, subtopic:'C7'},
+      {x:1590,y:247, subtopic:'C10'},
+      {x:1780,y:207, subtopic:'C8'},
+      {x:2160,y:227, subtopic:'C9'},
+      {x:2960,y:217, subtopic:'C10'},
+    ],
+    collectibles: genCoinsOnPlatforms([
+      {x:160,y:360,w:110},{x:330,y:305,w:100},{x:660,y:315,w:110},{x:840,y:265,w:100},
+      {x:1020,y:345,w:120},{x:1400,y:365,w:90},{x:1580,y:295,w:110},{x:1770,y:255,w:100},
+    ], ['hint','hp','hint','shield']),
+    portalX: 3100,
+  },
+  {
+    id:9, name:"Grand Gauntlet", topic:null,
+    theme:{ sky:['#080000','#180000'], ground:'#4a1010', dirt:'#2a0808', accent:'#cc2020' },
+    bgFinal: true,
+    subtopics:['A1','B1','C1','A3','B5','C4','B6','C7'],
+    enemyLabel:'👾 FINAL BOSS',
+    platforms:[
+      {x:0,   y:440, w:3600, h:60},
+      {x:200, y:350, w:120,  h:18},
+      {x:400, y:290, w:110,  h:18},
+      {x:590, y:360, w:100,  h:18},
+      {x:760, y:295, w:120,  h:18},
+      {x:960, y:245, w:100,  h:18},
+      {x:1140,y:330, w:130,  h:18},
+      {x:1350,y:270, w:110,  h:18},
+      {x:1550,y:350, w:100,  h:18},
+      {x:1740,y:280, w:120,  h:18},
+      {x:1950,y:240, w:110,  h:18},
+      {x:2150,y:320, w:100,  h:18},
+      {x:2350,y:265, w:120,  h:18},
+      {x:2560,y:340, w:110,  h:18},
+      {x:2770,y:275, w:100,  h:18},
+      {x:2980,y:240, w:120,  h:18},
+      {x:3200,y:310, w:110,  h:18},
+    ],
+    enemies:[
+      {x:420, y:242, subtopic:'A1'},
+      {x:780, y:247, subtopic:'B1'},
+      {x:980, y:197, subtopic:'C1'},
+      {x:1370,y:222, subtopic:'A3'},
+      {x:1760,y:232, subtopic:'B5'},
+      {x:1970,y:192, subtopic:'C4'},
+      {x:2370,y:217, subtopic:'B6'},
+      {x:3000,y:192, subtopic:'C7'},
+      {x:3220,y:262, subtopic:'A3'},
+    ],
+    collectibles: genCoinsOnPlatforms([
+      {x:210,y:350,w:120},{x:410,y:290,w:110},{x:770,y:295,w:120},{x:970,y:245,w:100},
+      {x:1150,y:330,w:130},{x:1560,y:350,w:100},{x:1750,y:280,w:120},{x:1960,y:240,w:110},
+    ], ['hp','hp','hint','shield','hint']),
+    portalX: 3350,
+  },
+];
+
+function genCoinsOnPlatforms(plats, powerupTypes) {
+  const items = [];
+  plats.forEach(p => {
+    // 2-4 coins on each platform
+    const count = 2 + Math.floor(p.w / 50);
+    for (let i = 0; i < count; i++) {
+      items.push({ type:'coin', x: p.x + 15 + i * (p.w - 30) / Math.max(count-1,1), y: p.y - 24, collected:false });
+    }
+  });
+  // Stars on high platforms
+  if (plats.length > 4) {
+    [1,3,5].forEach(i => {
+      if (plats[i]) items.push({ type:'star', x: plats[i].x + plats[i].w/2, y: plats[i].y - 50, collected:false });
+    });
+  }
+  // Ground coins
+  for (let x = 120; x < 3000; x += 180 + Math.floor(Math.random()*80)) {
+    items.push({ type:'coin', x, y: 415, collected:false });
+  }
+  // Power-ups
+  const powerPositions = [{x:500,y:390},{x:900,y:390},{x:1400,y:390},{x:1900,y:390},{x:2400,y:390}];
+  powerupTypes.forEach((pt, i) => {
+    const pos = powerPositions[i % powerPositions.length];
+    items.push({ type:'powerup', powerType:pt, x:pos.x + i*80, y:pos.y, collected:false,
+      label: pt==='hint'?'💡 HINT': pt==='hp'?'❤️ HP': pt==='shield'?'🛡️ SHIELD':'?' });
+  });
+  return items;
+}
+
+// ── Player ─────────────────────────────────────────────────
+let P = null;
+function resetPlayer(levelDef) {
+  P = {
+    x: 80, y: 300,
+    vx: 0, vy: 0,
+    w: 28, h: 44,
+    onGround: false,
+    facing: 1,
+    animFrame: 0, animTick: 0,
+    invincible: 0,
+    shield: false,
+    dead: false,
+  };
+}
+
+// ── Game loop vars ─────────────────────────────────────────
+let gameState  = 'title'; // 'title'|'map'|'playing'|'math'|'explain'|'clear'|'gameover'|'paused'
+let currentLevelDef = null;
+let currentLevelPlatforms = [];
+let currentLevelEnemies   = [];
+let currentLevelCollect   = [];
+let particles = [];
+let camX = 0;
+let portalRect = null;
+let levelStats  = { coins:0, stars:0, enemiesLeft:0 };
+let mathCtx     = { enemy:null, problem:null, wrongCount:0 };
+let raf = null;
+let lastTime = 0;
+
+// ── Achievements ───────────────────────────────────────────
+const ACH = [
+  {id:'first_enemy',  name:'First Blood',      icon:'⚔️',  desc:'Defeat your first monster'},
+  {id:'collect_10',   name:'Coin Collector',   icon:'🪙',  desc:'Collect 10 coins'},
+  {id:'collect_50',   name:'Treasure Hunter',  icon:'💰',  desc:'Collect 50 coins'},
+  {id:'star_5',       name:'Star Gazer',        icon:'⭐',  desc:'Collect 5 stars'},
+  {id:'no_damage',    name:'Flawless',          icon:'🛡️',  desc:'Complete a level without getting hit'},
+  {id:'level_3',      name:'Explorer',          icon:'🗺️',  desc:'Complete 3 levels'},
+  {id:'level_6',      name:'Adventurer',        icon:'🧭',  desc:'Complete 6 levels'},
+  {id:'level_9',      name:'Grand Champion',    icon:'👑',  desc:'Complete the Grand Gauntlet'},
+  {id:'correct_20',   name:'Problem Solver',    icon:'🔢',  desc:'Answer 20 problems correctly'},
+  {id:'correct_50',   name:'Math Master',       icon:'🎓',  desc:'Answer 50 problems correctly'},
+  {id:'use_teach',    name:'Eager Learner',     icon:'📖',  desc:'Use "How do I solve this?" 5 times'},
+  {id:'streak_3',     name:'On Fire',           icon:'🔥',  desc:'3-day login streak'},
+];
+
+function checkAch(id) {
+  if (!G || G.achievements.includes(id)) return;
+  G.achievements.push(id);
+  const def = ACH.find(a => a.id === id);
+  if (def) showAchPopup(def);
+  writeSave();
+}
+
+function showAchPopup(def) {
+  const el = document.createElement('div');
+  el.className = 'ach-popup';
+  el.innerHTML = `<div class="ach-popup-icon">${def.icon}</div>
+    <div class="ach-popup-text">
+      <div style="font-size:7px;color:var(--accent2);font-family:var(--pixel)">ACHIEVEMENT</div>
+      <div style="font-size:8px;font-family:var(--pixel)">${def.name}</div>
+    </div>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ── Toast ──────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3100);
+}
+
+// ── Screen switcher ────────────────────────────────────────
+function showHTMLScreen(name) {
+  ['screen-title','screen-name','screen-map','screen-achievements'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.toggle('active', id === name); }
+  });
+  const vp = document.getElementById('game-viewport');
+  if (vp) vp.style.display = (name === 'game-viewport') ? 'block' : 'none';
+  if (name === 'game-viewport') {
+    resizeCanvas();
+    bindMobile();
+  }
+}
+
+// ── Load level into runtime arrays ─────────────────────────
+function loadLevel(def) {
+  currentLevelDef = def;
+  currentLevelPlatforms = def.platforms.map(p => ({...p}));
+  currentLevelEnemies = def.enemies.map((e, i) => {
+    const pool = MP.getProblemsBySubtopic(e.subtopic).filter(Boolean);
+    const problem = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+    const plat = def.platforms.find(p => Math.abs((p.x + p.w/2) - e.x) < p.w/2 + 40) || def.platforms[1];
+    return {
+      id: i,
+      x: e.x, y: e.y,
+      w: 36, h: 44,
+      vx: 1.2, dir: 1,
+      patrolL: plat ? plat.x + 10 : e.x - 80,
+      patrolR: plat ? plat.x + plat.w - 10 : e.x + 80,
+      problem,
+      alive: true,
+      alertRadius: 220,
+      animTick: 0,
+      subtopic: e.subtopic,
+      // Show the problem numbers visually on enemy
+      label: problem ? getEnemyLabel(problem) : '?',
+    };
+  });
+  currentLevelCollect = def.collectibles.map(c => ({...c, bobOffset: Math.random()*Math.PI*2}));
+  particles = [];
+  camX = 0;
+  portalRect = { x: def.portalX, y: 370, w: 50, h: 70 };
+  levelStats = { coins:0, stars:0, enemiesLeft: currentLevelEnemies.length, tookDamage:false };
+  resetPlayer(def);
+  updateGameHUD();
+}
+
+function getEnemyLabel(problem) {
+  // Show the key numbers from the problem so even while running the student sees the math
+  if (!problem) return '?';
+  const q = problem.question;
+  const m = q.match(/(\d+\/\d+|\d+\s*[÷×]\s*\d+)/);
+  return m ? m[0] : q.slice(0,8);
+}
+
+// ── Main game loop ─────────────────────────────────────────
+function startLoop() {
+  if (raf) cancelAnimationFrame(raf);
+  lastTime = performance.now();
+  function frame(now) {
+    const dt = Math.min((now - lastTime) / 16.67, 3); // cap at 3x slow
+    lastTime = now;
+    if (gameState === 'playing') {
+      update(dt);
+      render();
+    } else if (gameState === 'paused') {
+      render(); // still render, just frozen
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+}
+
+// ── UPDATE ─────────────────────────────────────────────────
+function update(dt) {
+  updatePlayer(dt);
+  updateEnemies(dt);
+  updateCollectibles();
+  updateParticles(dt);
+  updateCamera();
+  checkPortal();
+}
+
+function updatePlayer(dt) {
+  if (!P || P.dead) return;
+
+  // Horizontal movement
+  P.vx = 0;
+  if (keys.left)  { P.vx = -5 * dt; P.facing = -1; }
+  if (keys.right) { P.vx =  5 * dt; P.facing =  1; }
+
+  // Jumping
+  if (keys.up && P.onGround && !jumpConsumed) {
+    P.vy = -13;
+    jumpConsumed = true;
+    spawnParticles(P.x + P.w/2, P.y + P.h, '#aaaaff', 4);
+  }
+
+  // Gravity
+  P.vy += 0.55 * dt;
+  if (P.vy > 16) P.vy = 16;
+
+  // Move
+  P.x += P.vx;
+  P.y += P.vy;
+
+  // Keep in world bounds
+  if (P.x < 0) P.x = 0;
+
+  // Platform collision
+  P.onGround = false;
+  for (const plat of currentLevelPlatforms) {
+    if (rectOverlap(P, plat)) {
+      // Landing on top
+      if (P.vy >= 0 && P.y + P.h - P.vy * dt <= plat.y + 2) {
+        P.y = plat.y - P.h;
+        P.vy = 0;
+        P.onGround = true;
+      } else if (P.vy < 0 && P.y >= plat.y + plat.h - 2) {
+        // Hitting underside
+        P.y = plat.y + plat.h;
+        P.vy = 0;
+      } else {
+        // Side collision
+        const fromLeft  = P.x + P.w - P.vx > plat.x && P.x - P.vx <= plat.x;
+        const fromRight = P.x - P.vx < plat.x + plat.w && P.x + P.w - P.vx >= plat.x + plat.w;
+        if (fromLeft)  P.x = plat.x - P.w;
+        if (fromRight) P.x = plat.x + plat.w;
+        P.vx = 0;
+      }
+    }
+  }
+
+  // Fall off bottom → die
+  if (P.y > CH + 50) {
+    playerDie();
+    return;
+  }
+
+  // Invincibility frames
+  if (P.invincible > 0) P.invincible -= dt;
+
+  // Animation
+  P.animTick += dt;
+  if (P.animTick >= 8) { P.animTick = 0; P.animFrame = (P.animFrame + 1) % 2; }
+
+  // Check enemy collision
+  if (P.invincible <= 0) {
+    for (const enemy of currentLevelEnemies) {
+      if (!enemy.alive) continue;
+      if (rectOverlap(P, enemy)) {
+        triggerMathProblem(enemy);
+        break;
+      }
+    }
+  }
+}
+
+function rectOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function updateEnemies(dt) {
+  for (const e of currentLevelEnemies) {
+    if (!e.alive) continue;
+    e.animTick += dt;
+    // Patrol left/right
+    e.x += e.vx * e.dir * dt;
+    if (e.x <= e.patrolL) { e.dir =  1; e.x = e.patrolL; }
+    if (e.x >= e.patrolR) { e.dir = -1; e.x = e.patrolR; }
+  }
+}
+
+function updateCollectibles() {
+  if (!P) return;
+  for (const item of currentLevelCollect) {
+    if (item.collected) continue;
+    const itemRect = { x:item.x-14, y:item.y-14, w:28, h:28 };
+    if (rectOverlap(P, itemRect)) {
+      item.collected = true;
+      collectItem(item);
+    }
+  }
+}
+
+function collectItem(item) {
+  if (item.type === 'coin') {
+    G.coins++; levelStats.coins++;
+    spawnParticles(item.x, item.y, '#f0d060', 5);
+    if (G.coins >= 10) checkAch('collect_10');
+    if (G.coins >= 50) checkAch('collect_50');
+  } else if (item.type === 'star') {
+    G.stars++; levelStats.stars++;
+    addXP(10);
+    spawnParticles(item.x, item.y, '#ffffa0', 8);
+    if (G.stars >= 5) checkAch('star_5');
+  } else if (item.type === 'powerup') {
+    spawnParticles(item.x, item.y, '#80ffff', 10);
+    if (item.powerType === 'hp') {
+      G.hp = Math.min(G.maxHp, G.hp + 1);
+      toast('❤️ +1 HP!');
+    } else if (item.powerType === 'hint') {
+      G.hintsLeft = (G.hintsLeft || 0) + 2;
+      toast('💡 +2 Hints!');
+    } else if (item.powerType === 'shield') {
+      P.shield = true;
+      toast('🛡️ Shield activated! Next wrong answer is blocked.');
+    }
+  }
+  updateGameHUD();
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vy += 0.15 * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function updateCamera() {
+  if (!P) return;
+  const target = P.x - CW * 0.35;
+  camX += (target - camX) * 0.1;
+  if (camX < 0) camX = 0;
+}
+
+function checkPortal() {
+  if (!P || !portalRect) return;
+  if (levelStats.enemiesLeft > 0) return; // portal only opens when all enemies defeated
+  if (rectOverlap(P, portalRect)) {
+    levelComplete();
+  }
+}
+
+// ── Math trigger ────────────────────────────────────────────
+let teachUsedCount = 0;
+function triggerMathProblem(enemy) {
+  if (!enemy.problem) { enemy.alive = false; return; }
+  gameState = 'math';
+  mathCtx = { enemy, problem: enemy.problem, wrongCount: 0 };
+
+  const topicNames = { A:'FRACTIONS & DECIMALS', B:'LONG DIVISION', C:'MULTIPLICATION' };
+  const p = enemy.problem;
+
+  document.getElementById('math-enemy-label').textContent = currentLevelDef.enemyLabel + ' — ' + enemy.label;
+  document.getElementById('math-topic-badge').textContent = topicNames[p.topic] || p.topic;
+  document.getElementById('math-question').innerHTML = formatQuestion(p.question);
+  document.getElementById('math-hint-box').style.display = 'none';
+  document.getElementById('math-hint-box').textContent = '';
+  document.getElementById('math-feedback').textContent = '';
+  document.getElementById('math-hint-count').textContent = G.hintsLeft || 0;
+
+  const mcDiv = document.getElementById('math-mc-choices');
+  const inputRow = document.getElementById('math-input-row');
+
+  if (p.type === 'mc' && p.choices) {
+    mcDiv.style.display = 'grid';
+    inputRow.style.display = 'none';
+    mcDiv.innerHTML = '';
+    p.choices.forEach(choice => {
+      const btn = document.createElement('button');
+      btn.className = 'mc-btn'; btn.textContent = choice;
+      btn.addEventListener('click', () => submitMathAnswer(choice));
+      mcDiv.appendChild(btn);
+    });
   } else {
-    showScreen('name');
-  }
-}
-
-function updateTitleScreen() {
-  if (!G) return;
-  // Show CONTINUE whenever a save exists — the handler already routes correctly
-  // (no diagnostic done → starts diagnostic, diagnostic done → shows map)
-  el('continue-btn').style.display = '';
-  el('continue-btn').textContent = G.diagnosticDone ? '▶ CONTINUE' : '▶ START ADVENTURE';
-
-  if (G.streak.current >= 2) {
-    el('streak-display').classList.remove('hidden');
-    el('streak-count').textContent = G.streak.current;
+    mcDiv.style.display = 'none';
+    inputRow.style.display = 'flex';
+    document.getElementById('math-answer-input').value = '';
+    setTimeout(() => document.getElementById('math-answer-input').focus(), 100);
   }
 
-  // Daily login XP
-  const today = new Date().toDateString();
-  if (G._lastLoginXP !== today) {
-    G._lastLoginXP = today;
-    addXP(25);
-    saveGame();
-    toast('🌅 Daily login bonus: +25 XP!');
-  }
+  document.getElementById('math-modal').style.display = 'flex';
 }
 
-function updateStreak() {
-  if (!G) return;
-  const today = new Date().toDateString();
-  if (G.streak.lastDate === today) return;
-
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  if (G.streak.lastDate === yesterday.toDateString()) {
-    G.streak.current++;
-  } else if (G.streak.lastDate !== today) {
-    G.streak.current = 1;
-  }
-
-  G.streak.best = Math.max(G.streak.best, G.streak.current);
-  G.streak.lastDate = today;
-
-  if (G.streak.current >= 3) checkAchievement('streak_3');
-  if (G.streak.current >= 7) checkAchievement('streak_7');
-}
-
-// ═════════════════════════════════════════════════════════════
-// DIAGNOSTIC QUIZ
-// ═════════════════════════════════════════════════════════════
-function startDiagnostic() {
-  DS.questions = [
-    ...DIAGNOSTIC_BANK.A,
-    ...DIAGNOSTIC_BANK.B,
-    ...DIAGNOSTIC_BANK.C,
-  ].filter(Boolean);
-  DS.current = 0;
-  DS.scores = { A:0, B:0, C:0 };
-  showScreen('diagnostic');
-  showDiagnosticQuestion();
-}
-
-function showDiagnosticQuestion() {
-  const q = DS.questions[DS.current];
-  if (!q) { finishDiagnostic(); return; }
-
-  const pct = Math.round((DS.current / DS.questions.length) * 100);
-  el('diag-progress').style.width = pct + '%';
-  el('diag-progress-text').textContent = `${DS.current} / ${DS.questions.length}`;
-
-  const topicNames = { A:"FRACTIONS & DECIMALS", B:"LONG DIVISION", C:"MULTIPLICATION" };
-  el('diag-topic-label').textContent = 'TOPIC: ' + (topicNames[q.topic] || q.topic);
-
-  renderQuestion(q, 'diag-question', 'diag-mc-choices', 'diag-answer-row', 'diag-answer-input');
-  el('diag-feedback').textContent = '';
-  el('diag-hint').style.display = 'none';
-}
-
-function submitDiagnosticAnswer(userInput) {
-  const q = DS.questions[DS.current];
-  const correct = checkAnswer(q, userInput);
+function submitMathAnswer(userInput) {
+  if (!mathCtx.problem) return;
+  const correct = MP.checkAnswer(mathCtx.problem, String(userInput).trim());
+  G.totalAttempted++;
 
   if (correct) {
-    DS.scores[q.topic]++;
-    el('diag-feedback').textContent = '✅ Correct!';
-    el('diag-feedback').style.color = 'var(--green)';
+    G.totalCorrect++;
+    addXP(20);
+    writeSave();
+    document.getElementById('math-feedback').textContent = '✅ CORRECT! Enemy defeated!';
+    document.getElementById('math-feedback').style.color = 'var(--green)';
+    // Defeat enemy
+    setTimeout(() => {
+      document.getElementById('math-modal').style.display = 'none';
+      const e = mathCtx.enemy;
+      e.alive = false;
+      levelStats.enemiesLeft--;
+      spawnParticles(e.x + e.w/2, e.y + e.h/2, '#44d479', 20);
+      spawnParticles(e.x + e.w/2, e.y + e.h/2, '#f0d060', 10);
+      gameState = 'playing';
+      updateGameHUD();
+      checkAch('first_enemy');
+      if (G.totalCorrect >= 20) checkAch('correct_20');
+      if (G.totalCorrect >= 50) checkAch('correct_50');
+      if (levelStats.enemiesLeft === 0) toast('🎉 All enemies defeated! Reach the portal!');
+    }, 800);
   } else {
-    el('diag-feedback').textContent = `❌ Answer: ${q.answer}`;
-    el('diag-feedback').style.color = 'var(--red)';
+    mathCtx.wrongCount++;
+    document.getElementById('math-feedback').textContent = '❌ Not quite — try again!';
+    document.getElementById('math-feedback').style.color = 'var(--red)';
+    // Flash
+    const input = document.getElementById('math-answer-input');
+    if (input) { input.classList.add('shake'); setTimeout(() => input.classList.remove('shake'), 400); }
+    // Damage player after 2 wrong
+    if (mathCtx.wrongCount >= 2) {
+      if (P.shield) {
+        P.shield = false;
+        toast('🛡️ Shield absorbed the hit!');
+      } else {
+        G.hp--;
+        P.invincible = 90;
+        updateGameHUD();
+        if (G.hp <= 0) {
+          document.getElementById('math-modal').style.display = 'none';
+          setTimeout(playerDie, 200);
+          return;
+        }
+      }
+      mathCtx.wrongCount = 0;
+      toast('❤️ HP: ' + G.hp + '/' + G.maxHp);
+    }
+  }
+}
+
+function openTeachModal() {
+  if (!mathCtx.problem) return;
+  teachUsedCount++;
+  if (teachUsedCount >= 5) checkAch('use_teach');
+
+  // Build explanation but STRIP the final answer line
+  const html = buildExplanNoAnswer(mathCtx.problem);
+  document.getElementById('explain-modal-header').textContent = '📖 HOW TO SOLVE: ' + mathCtx.problem.question.slice(0, 40);
+  document.getElementById('explain-modal-header').style.color = 'var(--purple)';
+  document.getElementById('explain-modal-content').innerHTML = html;
+  document.getElementById('explain-feedback').textContent = '';
+  document.getElementById('explain-answer-input').value = '';
+  document.getElementById('math-modal').style.display = 'none';
+  document.getElementById('explain-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('explain-answer-input').focus(), 100);
+}
+
+function buildExplanNoAnswer(problem) {
+  // Get the full explanation from problems.js
+  let html = MP.buildExplanation(problem);
+  // Strip the answer reveal div (the green box at the bottom)
+  html = html.replace(/<div class="explain-answer">.*?<\/div>/gs, '');
+  return html;
+}
+
+function submitExplainAnswer() {
+  const userInput = document.getElementById('explain-answer-input').value.trim();
+  if (!userInput) return;
+  const correct = MP.checkAnswer(mathCtx.problem, userInput);
+  const fb = document.getElementById('explain-feedback');
+  if (correct) {
+    fb.textContent = '✅ Correct! Now go defeat that monster!';
+    fb.style.color = 'var(--green)';
+    setTimeout(() => {
+      document.getElementById('explain-modal').style.display = 'none';
+      document.getElementById('math-modal').style.display = 'flex';
+      document.getElementById('math-answer-input').value = userInput;
+      document.getElementById('math-feedback').textContent = '';
+    }, 1000);
+  } else {
+    fb.textContent = '❌ Not yet — re-read the steps above and try again.';
+    fb.style.color = 'var(--red)';
+    document.getElementById('explain-answer-input').value = '';
+  }
+}
+
+// ── Player death ────────────────────────────────────────────
+function playerDie() {
+  if (!P) return;
+  P.dead = true;
+  gameState = 'gameover';
+  spawnParticles(P.x + P.w/2, P.y + P.h/2, '#e84040', 20);
+  document.getElementById('gameover-overlay').style.display = 'flex';
+}
+
+// ── Level complete ─────────────────────────────────────────
+function levelComplete() {
+  gameState = 'clear';
+  const xpEarned = 100 + levelStats.coins * 2 + levelStats.stars * 10;
+  addXP(xpEarned);
+
+  if (!G.levelsCompleted.includes(currentLevelDef.id)) {
+    G.levelsCompleted.push(currentLevelDef.id);
+  }
+  // Unlock next level
+  const nextId = currentLevelDef.id + 1;
+  if (nextId <= LEVEL_DEFS.length && !G.levelsUnlocked.includes(nextId)) {
+    G.levelsUnlocked.push(nextId);
+  }
+  if (!levelStats.tookDamage) checkAch('no_damage');
+  if (G.levelsCompleted.length >= 3) checkAch('level_3');
+  if (G.levelsCompleted.length >= 6) checkAch('level_6');
+  if (G.levelsCompleted.length >= 9) checkAch('level_9');
+  writeSave();
+
+  document.getElementById('clear-level-name').textContent = currentLevelDef.name;
+  document.getElementById('cs-coins').textContent = levelStats.coins;
+  document.getElementById('cs-stars').textContent = levelStats.stars;
+  document.getElementById('cs-xp').textContent = '+' + xpEarned;
+  spawnConfetti();
+  document.getElementById('level-clear-overlay').style.display = 'flex';
+}
+
+// ── Particles ──────────────────────────────────────────────
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count;
+    const speed = 2 + Math.random() * 4;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      life: 20 + Math.random() * 20,
+      maxLife: 40,
+      color,
+      size: 3 + Math.random() * 3,
+    });
+  }
+}
+
+function spawnConfetti() {
+  const colors = ['#5b8dee','#e8a838','#44d479','#e84040','#9c6dd8','#f0d060'];
+  for (let i = 0; i < 60; i++) {
+    const wrap = document.getElementById('level-clear-overlay');
+    if (!wrap) return;
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.cssText = `left:${Math.random()*100}%;background:${colors[i%colors.length]};
+      animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*0.5}s;
+      width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;
+      border-radius:${Math.random()>0.5?'50%':'2px'};`;
+    wrap.appendChild(piece);
+  }
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+function render() {
+  ctx.clearRect(0, 0, CW, CH);
+  const def = currentLevelDef;
+  if (!def) return;
+
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0,0,0,CH);
+  const skyColors = def.theme.sky || ['#0a0f1a','#12162a'];
+  skyGrad.addColorStop(0, skyColors[0]);
+  skyGrad.addColorStop(1, skyColors[1]);
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, CW, CH);
+
+  // Background decorations
+  renderBackground(def);
+
+  ctx.save();
+  ctx.translate(-camX, 0);
+
+  // Ground glow/mist
+  renderMist(def);
+
+  // Platforms
+  renderPlatforms(def);
+
+  // Portal (only visible when all enemies dead)
+  if (portalRect && levelStats.enemiesLeft === 0) renderPortal();
+
+  // Collectibles
+  renderCollectibles();
+
+  // Enemies
+  renderEnemies(def);
+
+  // Player
+  if (P && !P.dead) renderPlayer();
+
+  // Particles
+  renderParticlesCanvas();
+
+  ctx.restore();
+
+  // HUD overlays on canvas
+  renderCanvasHUD(def);
+}
+
+function renderBackground(def) {
+  const t = def.theme;
+  const scroll1 = camX * 0.2, scroll2 = camX * 0.4;
+
+  if (def.bgTrees) {
+    // Tree silhouettes (parallax layer)
+    ctx.fillStyle = 'rgba(0,40,0,0.5)';
+    for (let i = 0; i < 20; i++) {
+      const tx = ((i * 180 - scroll1) % (CW + 200)) - 100;
+      const th = 80 + (i%3) * 40;
+      drawTree(tx, CH - 60, th);
+    }
+    ctx.fillStyle = 'rgba(0,60,0,0.4)';
+    for (let i = 0; i < 15; i++) {
+      const tx = ((i * 230 + 60 - scroll2) % (CW + 200)) - 100;
+      const th = 60 + (i%4) * 30;
+      drawTree(tx, CH - 60, th);
+    }
+  }
+  if (def.bgCacti) {
+    ctx.fillStyle = 'rgba(60,40,0,0.5)';
+    for (let i = 0; i < 12; i++) {
+      const cx = ((i * 200 - scroll1) % (CW + 200)) - 100;
+      drawCactus(cx, CH - 60);
+    }
+  }
+  if (def.bgCave) {
+    // Stalactites
+    ctx.fillStyle = 'rgba(20,20,50,0.7)';
+    for (let i = 0; i < 18; i++) {
+      const sx = ((i * 150 - scroll1) % (CW + 200)) - 100;
+      const sh = 20 + (i%4)*20;
+      ctx.beginPath();
+      ctx.moveTo(sx, 0); ctx.lineTo(sx+25, 0); ctx.lineTo(sx+12, sh);
+      ctx.fill();
+    }
+    // Gems
+    ctx.fillStyle = 'rgba(80,80,200,0.6)';
+    for (let i = 0; i < 10; i++) {
+      const gx = ((i * 280 - scroll2) % (CW + 200)) - 100;
+      const gy = 80 + (i%3)*60;
+      ctx.beginPath();
+      ctx.arc(gx, gy, 6, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+  if (def.bgDungeon || def.bgTower) {
+    // Stone wall pattern
+    ctx.fillStyle = 'rgba(30,10,20,0.5)';
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 10; col++) {
+        const bx = ((col * 120 + (row%2)*60) - scroll1*0.3) % (CW+120);
+        const by = 40 + row * 80;
+        ctx.strokeStyle = 'rgba(60,20,40,0.4)';
+        ctx.strokeRect(bx, by, 100, 60);
+      }
+    }
+  }
+  if (def.bgFinal) {
+    // Dramatic red sky with lightning
+    const now = performance.now() / 1000;
+    if (Math.sin(now * 3) > 0.95) {
+      ctx.fillStyle = 'rgba(255,200,100,0.15)';
+      ctx.fillRect(0, 0, CW, CH);
+    }
+  }
+}
+
+function drawTree(x, groundY, h) {
+  // trunk
+  ctx.fillRect(x - 6, groundY - h * 0.4, 12, h * 0.4);
+  // canopy
+  ctx.beginPath();
+  ctx.arc(x, groundY - h * 0.4, h * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+}
+function drawCactus(x, groundY) {
+  ctx.fillRect(x - 5, groundY - 70, 10, 70);
+  ctx.fillRect(x - 25, groundY - 50, 20, 8);
+  ctx.fillRect(x + 5, groundY - 40, 20, 8);
+}
+
+function renderMist(def) {
+  const t = def.theme;
+  const grad = ctx.createLinearGradient(0, CH - 80, 0, CH);
+  grad.addColorStop(0, 'transparent');
+  grad.addColorStop(1, t.ground + 'cc');
+  ctx.fillStyle = grad;
+  ctx.fillRect(camX, CH - 80, CW + 100, 80);
+}
+
+function renderPlatforms(def) {
+  const t = def.theme;
+  for (const plat of currentLevelPlatforms) {
+    // Skip if off-screen
+    if (plat.x + plat.w < camX - 50 || plat.x > camX + CW + 50) continue;
+    const isGround = plat.h > 30;
+
+    // Main body
+    ctx.fillStyle = t.dirt;
+    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+    // Top surface
+    ctx.fillStyle = t.ground;
+    ctx.fillRect(plat.x, plat.y, plat.w, isGround ? 14 : 8);
+
+    // Accent stripe
+    ctx.fillStyle = t.accent;
+    ctx.fillRect(plat.x, plat.y, plat.w, 3);
+
+    // Border
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+  }
+}
+
+function renderPortal() {
+  const p = portalRect;
+  const now = performance.now() / 1000;
+  // Pulsing portal effect
+  const pulse = 0.8 + 0.2 * Math.sin(now * 3);
+  ctx.save();
+  // Glow
+  ctx.shadowBlur = 30 * pulse;
+  ctx.shadowColor = '#44d479';
+  // Portal frame
+  ctx.fillStyle = `rgba(68,212,121,${0.8 * pulse})`;
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+  ctx.fillStyle = `rgba(0,255,150,${0.4 * pulse})`;
+  ctx.fillRect(p.x + 8, p.y + 8, p.w - 16, p.h - 16);
+  // Text
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('EXIT', p.x + p.w/2, p.y + p.h/2 + 4);
+  ctx.restore();
+}
+
+function renderCollectibles() {
+  const now = performance.now() / 1000;
+  for (const item of currentLevelCollect) {
+    if (item.collected) continue;
+    if (item.x < camX - 50 || item.x > camX + CW + 50) continue;
+    const bob = Math.sin(now * 2 + (item.bobOffset||0)) * 4;
+
+    if (item.type === 'coin') {
+      // Gold coin
+      ctx.save();
+      ctx.fillStyle = '#f0d060';
+      ctx.shadowBlur = 8; ctx.shadowColor = '#f0d060';
+      ctx.beginPath();
+      ctx.arc(item.x, item.y + bob, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#c0a020';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('$', item.x, item.y + bob + 4);
+      ctx.restore();
+    } else if (item.type === 'star') {
+      // Star
+      ctx.save();
+      ctx.fillStyle = '#ffffa0';
+      ctx.shadowBlur = 12; ctx.shadowColor = '#ffffa0';
+      drawStar(item.x, item.y + bob, 14, 6);
+      ctx.restore();
+    } else if (item.type === 'powerup') {
+      // Power-up crate
+      ctx.save();
+      const col = item.powerType==='hp'?'#e84040': item.powerType==='hint'?'#5b8dee':'#9c6dd8';
+      ctx.fillStyle = col;
+      ctx.shadowBlur = 14; ctx.shadowColor = col;
+      ctx.fillRect(item.x - 16, item.y - 16 + bob, 32, 32);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.strokeRect(item.x - 16, item.y - 16 + bob, 32, 32);
+      ctx.fillStyle = '#fff';
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(item.type==='powerup'?(item.powerType==='hp'?'❤️':item.powerType==='hint'?'💡':'🛡️'):'?',
+        item.x, item.y + bob + 6);
+      ctx.restore();
+    }
+  }
+}
+
+function drawStar(cx, cy, outerR, innerR) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = (Math.PI * 2 * i / 10) - Math.PI / 2;
+    if (i === 0) ctx.moveTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+    else ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+function renderEnemies(def) {
+  const now = performance.now() / 1000;
+  for (const e of currentLevelEnemies) {
+    if (!e.alive) continue;
+    if (e.x < camX - 80 || e.x > camX + CW + 80) continue;
+
+    const bounce = Math.sin(now * 3 + e.id) * 3;
+    const facing = e.dir;
+
+    ctx.save();
+    ctx.translate(e.x + e.w/2, e.y + e.h/2 + bounce);
+    ctx.scale(facing, 1);
+
+    // Enemy body — color based on topic
+    const col = def.topic==='A'?'#5b8dee': def.topic==='B'?'#9c4040': def.topic==='C'?'#408040':'#c03030';
+    const darkCol = def.topic==='A'?'#2a5aaa': def.topic==='B'?'#701010': def.topic==='C'?'#206020':'#801010';
+
+    // Body
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(0, -4, 18, 0, Math.PI * 2);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-10, -12, 8, 8);
+    ctx.fillRect(2, -12, 8, 8);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-8, -10, 5, 5);
+    ctx.fillRect(4, -10, 5, 5);
+    // Mouth (angry)
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-8, 2); ctx.lineTo(8, 2); ctx.stroke();
+
+    ctx.restore();
+
+    // Label showing the math on the enemy
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(e.x - 2, e.y - 22, e.w + 4, 18);
+    ctx.fillStyle = '#f0d060';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(e.label, e.x + e.w/2, e.y - 8);
+    ctx.restore();
+
+    // Alert radius visual when player is close
+    if (P && dist(P.x + P.w/2, P.y + P.h/2, e.x + e.w/2, e.y + e.h/2) < e.alertRadius * 0.5) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,50,50,0.4)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.arc(e.x + e.w/2, e.y + e.h/2, e.alertRadius * 0.5, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+function dist(x1,y1,x2,y2) {
+  return Math.sqrt((x2-x1)**2+(y2-y1)**2);
+}
+
+function renderPlayer() {
+  if (!P) return;
+  const now = performance.now() / 1000;
+  const blink = P.invincible > 0 && Math.floor(now * 8) % 2 === 0;
+  if (blink) return;
+
+  ctx.save();
+  ctx.translate(P.x + P.w/2, P.y + P.h/2);
+  ctx.scale(P.facing, 1);
+
+  // Body (knight)
+  // Legs
+  const legSwing = P.onGround ? Math.sin(now * 10) * 6 : 0;
+  ctx.fillStyle = '#2255cc';
+  ctx.fillRect(-8, 8, 6, 14 + (P.onGround ? legSwing : 0));
+  ctx.fillRect(2, 8, 6, 14 - (P.onGround ? legSwing : 0));
+  // Torso
+  ctx.fillStyle = '#3a7aff';
+  ctx.fillRect(-10, -8, 20, 18);
+  // Armor highlight
+  ctx.fillStyle = '#5599ff';
+  ctx.fillRect(-8, -6, 16, 5);
+  // Head
+  ctx.fillStyle = '#c0c0f0';
+  ctx.fillRect(-8, -22, 16, 16);
+  // Visor
+  ctx.fillStyle = '#5b8dee';
+  ctx.fillRect(-6, -16, 12, 4);
+  // Eyes (visible through visor)
+  ctx.fillStyle = '#ffff80';
+  ctx.fillRect(-4, -16, 3, 3);
+  ctx.fillRect(1, -16, 3, 3);
+  // Sword
+  ctx.fillStyle = '#c0c0c0';
+  ctx.fillRect(10, -10, 4, 20);
+  ctx.fillStyle = '#8a6020';
+  ctx.fillRect(8, -4, 8, 4);
+  // Shield if active
+  if (P.shield) {
+    ctx.strokeStyle = '#9c6dd8'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 24, 0, Math.PI*2);
+    ctx.stroke();
   }
 
-  setTimeout(() => {
-    DS.current++;
-    showDiagnosticQuestion();
-  }, 900);
+  ctx.restore();
 }
 
-function finishDiagnostic() {
-  G.diagnosticDone = true;
-  checkAchievement('diagnostic_done');
-
-  // Order topics weakest first
-  const order = ['A','B','C'].sort((a,b) => DS.scores[a] - DS.scores[b]);
-  G.topicOrder = order;
-
-  // Reorder dungeons
-  reorderDungeonsByTopic(order);
-
-  // Unlock first dungeon
-  if (G.dungeonsUnlocked.length === 0) G.dungeonsUnlocked.push(DUNGEON_DEFS[0].id);
-  saveGame();
-
-  toast(`Weakest topic: ${topicName(order[0])} — starting there!`);
-  setTimeout(() => showMap(), 1200);
+function renderParticlesCanvas() {
+  for (const p of particles) {
+    ctx.save();
+    const alpha = Math.min(1, p.life / 15);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    ctx.restore();
+  }
 }
 
-function reorderDungeonsByTopic(order) {
-  // Topic order just controls which topic zone appears first
-  // (Dungeon IDs are static — we remap the topicOrder into the DUNGEON_DEFS display order)
-  // For simplicity, we store topicOrder and the map renders dungeon groups in that order.
-  // No structural change needed as dungeons are already grouped.
+function renderCanvasHUD(def) {
+  // Enemy counter at top-right on canvas
+  if (levelStats.enemiesLeft > 0) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(CW - 160, 8, 152, 28);
+    ctx.fillStyle = '#e84040';
+    ctx.font = 'bold 11px "Courier New"';
+    ctx.textAlign = 'right';
+    ctx.fillText('👾 ' + levelStats.enemiesLeft + ' monsters left', CW - 12, 27);
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(CW - 200, 8, 192, 28);
+    ctx.fillStyle = '#44d479';
+    ctx.font = 'bold 11px "Courier New"';
+    ctx.textAlign = 'right';
+    ctx.fillText('✅ All defeated → REACH PORTAL!', CW - 12, 27);
+    ctx.restore();
+  }
 }
 
-// ═════════════════════════════════════════════════════════════
-// WORLD MAP
-// ═════════════════════════════════════════════════════════════
-function showMap() {
-  showScreen('map');
-  el('map-hero-name').textContent = G.playerName;
-  el('map-level').textContent     = G.heroLevel;
-  el('map-hp').textContent        = G.hp;
-  el('map-gold').textContent      = G.gold;
-  el('map-xp').textContent        = G.heroXP;
-
-  const pct = Math.round((G.heroXP / G.heroMaxXP) * 100);
-  el('map-xp-fill').style.width = pct + '%';
-  el('map-xp-cur').textContent  = G.heroXP;
-  el('map-xp-max').textContent  = G.heroMaxXP;
-  el('map-xp-text').textContent = pct + '%';
-
-  renderDungeonGrid();
-}
-
-function renderDungeonGrid() {
-  const grid = el('dungeon-grid');
-  grid.innerHTML = '';
-
-  DUNGEON_DEFS.forEach(d => {
-    const card = document.createElement('div');
-    card.className = 'dungeon-card';
-
-    const completed = G.dungeonsCompleted.includes(d.id);
-    const unlocked  = G.dungeonsUnlocked.includes(d.id);
-    const locked    = !unlocked;
-
-    if (locked) card.classList.add('locked');
-    if (completed) card.classList.add('completed');
-    if (d.boss && !d.isMiniTest) card.classList.add('boss-level');
-    if (d.isMiniTest) card.classList.add('mini-test-card');
-
-    const stars = G.dungeonStars[d.id] || 0;
-    const starStr = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
-
-    card.innerHTML = `
-      <div class="dungeon-icon">${d.icon}</div>
-      <div class="dungeon-name">${d.name}</div>
-      <div class="dungeon-level">${d.isMiniTest ? 'QUIZ' : `LV${d.id}`} ${completed ? '✅' : ''}</div>
-      <div class="dungeon-stars">${completed ? starStr : ''}</div>
-      ${locked ? '<div class="lock-overlay">🔒</div>' : ''}
-    `;
-
-    if (!locked) {
-      card.addEventListener('click', () => enterDungeon(d));
+// ── HTML HUD update ────────────────────────────────────────
+function updateGameHUD() {
+  if (!G || !currentLevelDef) return;
+  // Hearts
+  const hearts = document.getElementById('hud-hearts');
+  if (hearts) {
+    hearts.innerHTML = '';
+    for (let i = 0; i < G.maxHp; i++) {
+      const h = document.createElement('span');
+      h.textContent = i < G.hp ? '❤️' : '🖤';
+      h.style.fontSize = '18px';
+      hearts.appendChild(h);
     }
+  }
+  const ln = document.getElementById('hud-level-name');
+  if (ln) ln.textContent = currentLevelDef.name;
+  const el = document.getElementById('hud-enemies-left');
+  if (el) el.textContent = levelStats.enemiesLeft + ' monsters remaining';
+  const hc = document.getElementById('hud-coins');
+  if (hc) hc.textContent = G.coins;
+  const hs = document.getElementById('hud-stars');
+  if (hs) hs.textContent = G.stars;
+}
 
+// ── Helpers ────────────────────────────────────────────────
+function formatQuestion(text) {
+  return text.replace(/(\d+)\s*\/\s*(\d+)/g, (_, n, d) =>
+    `<span class="frac-display"><span class="frac-num">${n}</span><span class="frac-den">${d}</span></span>`
+  );
+}
+
+function togglePause() {
+  if (gameState === 'playing') {
+    gameState = 'paused';
+    document.getElementById('pause-overlay').style.display = 'flex';
+  } else if (gameState === 'paused') {
+    gameState = 'playing';
+    document.getElementById('pause-overlay').style.display = 'none';
+  }
+}
+
+// ── Map Screen ─────────────────────────────────────────────
+function renderMapScreen() {
+  showHTMLScreen('screen-map');
+  document.getElementById('map-name').textContent = G.playerName;
+  document.getElementById('map-hp').textContent = G.hp + '/' + G.maxHp;
+  document.getElementById('map-coins').textContent = G.coins;
+  document.getElementById('map-level').textContent = G.heroLevel;
+  document.getElementById('map-xp').textContent = G.heroXP;
+  document.getElementById('map-xp-max').textContent = G.heroMaxXP;
+  const pct = Math.round((G.heroXP / G.heroMaxXP) * 100);
+  document.getElementById('map-xp-fill').style.width = pct + '%';
+
+  const grid = document.getElementById('level-grid');
+  grid.innerHTML = '';
+  LEVEL_DEFS.forEach(def => {
+    const unlocked  = G.levelsUnlocked.includes(def.id);
+    const completed = G.levelsCompleted.includes(def.id);
+    const card = document.createElement('div');
+    card.className = `dungeon-card${unlocked?'':' locked'}${completed?' completed':''}`;
+    card.innerHTML = `
+      <div style="font-size:28px;">${def.bgTrees?'🌲':def.bgCacti?'🏜️':def.bgCave?'🕳️':def.bgDungeon?'⚙️':def.bgTower?'🗼':def.bgMarsh?'🌿':def.bgKingdom?'👑':def.bgOcean?'💧':def.bgFinal?'🏰':'⚔️'}</div>
+      <div class="dungeon-name">Level ${def.id}</div>
+      <div class="dungeon-name" style="font-size:6px;margin-top:2px;">${def.name}</div>
+      <div style="font-size:12px;margin-top:4px;">${completed ? '✅' : unlocked ? '▶' : '🔒'}</div>
+    `;
+    if (unlocked) {
+      card.addEventListener('click', () => enterLevel(def));
+    }
     grid.appendChild(card);
   });
 }
 
-function enterDungeon(dungeon) {
-  if (dungeon.isMiniTest) {
-    startMiniTest(dungeon);
-    return;
-  }
-  if (dungeon.boss) {
-    showShop(dungeon);
-  } else {
-    startBattle(dungeon);
-  }
-}
-
-// ═════════════════════════════════════════════════════════════
-// SHOP
-// ═════════════════════════════════════════════════════════════
-function showShop(dungeon) {
-  BS.dungeon = dungeon;
-  showScreen('shop');
-  el('shop-gold-display').textContent = G.gold;
-  el('buy-potion-btn').disabled = G.gold < 30;
-  el('buy-hint-btn').disabled   = G.gold < 20;
-  el('buy-skip-btn').disabled   = G.gold < 50;
-}
-
-function buyItem(item, cost) {
-  if (G.gold < cost) { toast('Not enough gold!'); return; }
-  G.gold -= cost;
-  if (item === 'potion') G.spells.potion++;
-  if (item === 'hint')   G.spells.hint += 3;
-  if (item === 'skip')   G.spells.skip++;
-  saveGame();
-  el('shop-gold-display').textContent = G.gold;
-  el('buy-potion-btn').disabled = G.gold < 30;
-  el('buy-hint-btn').disabled   = G.gold < 20;
-  el('buy-skip-btn').disabled   = G.gold < 50;
-  toast(`Bought ${item}!`);
-}
-
-// ═════════════════════════════════════════════════════════════
-// BATTLE
-// ═════════════════════════════════════════════════════════════
-const ENEMIES_PER_DUNGEON = 8; // regular + 1 boss = 9 total
-
-function startBattle(dungeon) {
-  BS.dungeon      = dungeon;
-  BS.enemyIdx     = 0;
-  BS.wrongCount   = 0;
-  BS.correctCount = 0;
-  BS.totalCount   = 0;
-  BS.hintUsed     = false;
-  BS.hintsThisDungeon  = 0;
-  BS.skipsThisDungeon  = 0;
-  BS.tookDamage   = false;
-  BS.pendingProblem = null;
-  BS.speedTracker = [];
-  BS.isBoss       = false;
-
-  // Build problem pool from dungeon's subtopics
-  let pool = [];
-  (dungeon.subtopics || []).forEach(st => {
-    pool = pool.concat(getProblemsBySubtopic(st));
+function enterLevel(def) {
+  G.hp = G.maxHp; // restore HP on level entry
+  writeSave();
+  loadLevel(def);
+  showHTMLScreen('game-viewport');
+  // Hide all overlays
+  ['math-modal','explain-modal','level-clear-overlay','gameover-overlay','pause-overlay'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
   });
-  if (pool.length === 0) pool = ALL_PROBLEMS.filter(p => p.topic === dungeon.topic);
-  pool = shuffle(pool);
-  // We need at least (ENEMIES_PER_DUNGEON + boss×3) problems
-  while (pool.length < 20) pool = pool.concat(pool);
-  BS.problems = pool;
-  BS.currentIdx = 0;
-
-  showScreen('battle');
-  spawnEnemy(false);
-  showNextProblem();
+  gameState = 'playing';
+  startLoop();
+  updateGameHUD();
 }
 
-function spawnEnemy(isBoss) {
-  BS.isBoss = isBoss;
-  const dunId = typeof BS.dungeon.id === 'number' ? BS.dungeon.id : 10;
-  const design = ENEMY_DESIGNS[dunId] || { name:"Monster", color:"#c03030", emoji:"👾" };
-
-  if (isBoss) {
-    BS.enemyMaxHp = 120;
-    BS.bossHitsLeft = 3;
-    BS.bossHitsNeeded = 3;
-  } else {
-    BS.enemyMaxHp = 60 + Math.floor(Math.random() * 30);
-    BS.bossHitsLeft = 1;
-  }
-  BS.enemyHp = BS.enemyMaxHp;
-
-  el('enemy-name-display').textContent = isBoss ? `👾 BOSS: ${design.name}` : design.name;
-  updateEnemyHpBar();
-  updateBattleWave();
-
-  // Tint enemy sprite
-  const svg = document.getElementById('enemy-sprite');
-  if (svg) {
-    svg.querySelectorAll('ellipse, rect, circle').forEach(el_ => {
-      if (el_.getAttribute('fill') === '#c03030') el_.setAttribute('fill', design.color);
-    });
-    if (svg.parentElement) {
-      svg.parentElement.querySelector('.fighter-name') &&
-        (svg.parentElement.querySelector('.fighter-name').textContent =
-          isBoss ? `👾 BOSS: ${design.name}` : design.emoji + " " + design.name);
-    }
-  }
+// ── Streak ─────────────────────────────────────────────────
+function updateStreak() {
+  const today = new Date().toDateString();
+  if (G.streak.lastDate === today) return;
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  G.streak.current = G.streak.lastDate === yesterday.toDateString() ? G.streak.current + 1 : 1;
+  G.streak.best = Math.max(G.streak.best, G.streak.current);
+  G.streak.lastDate = today;
+  if (G.streak.current >= 3) checkAch('streak_3');
 }
 
-function showNextProblem() {
-  if (BS.currentIdx >= BS.problems.length) {
-    BS.currentIdx = 0; // cycle
-  }
-  const p = BS.problems[BS.currentIdx];
-  BS.pendingProblem = p;
-  renderBattleProblem(p);
-}
-
-function renderBattleProblem(p) {
-  const topicNames = { A:"FRACTIONS & DECIMALS", B:"LONG DIVISION", C:"MULTIPLICATION" };
-  el('battle-topic-badge').textContent = topicNames[p.topic] || p.topic;
-
-  renderQuestion(p, 'battle-question', 'battle-mc-choices', 'battle-answer-row', 'battle-answer-input');
-
-  el('battle-hint-box').style.display = 'none';
-  el('battle-hint-box').textContent = '';
-
-  el('hint-count').textContent   = G.spells.hint;
-  el('potion-count').textContent = G.spells.potion;
-  el('skip-count').textContent   = G.spells.skip;
-
-  el('use-skip-btn').disabled = G.spells.skip <= 0 || BS.skipsThisDungeon >= 1;
-
-  if (BS.isBoss) {
-    el('battle-wave').textContent =
-      `BOSS BATTLE — Hit ${BS.bossHitsNeeded - BS.bossHitsLeft + 1} / ${BS.bossHitsNeeded}`;
-  }
-}
-
-function submitBattleAnswer(userInput) {
-  const p = BS.pendingProblem;
-  if (!p) return;
-
-  const correct = checkAnswer(p, userInput);
-  BS.totalCount++;
-  G.totalProblemsAttempted++;
-
-  recordSubtopicAttempt(p.subtopic, correct);
-
-  if (correct) {
-    G.totalProblemsCorrect++;
-    BS.correctCount++;
-    BS.speedTracker.push(Date.now());
-    checkSpeedAchievement();
-    checkAchievement('first_blood');
-    if (p.topic === 'B') checkDivisionMaster();
-    if (G.totalProblemsCorrect >= 50)  checkAchievement('problem_50');
-    if (G.totalProblemsCorrect >= 100) checkAchievement('problem_100');
-    if (G.totalProblemsCorrect >= 200) checkAchievement('problem_200');
-
-    animateHeroAttack();
-    const dmg = 30 + Math.floor(Math.random() * 15);
-    damageEnemy(dmg);
-
-    el('battle-answer-input').classList.add('correct-flash');
-    setTimeout(() => el('battle-answer-input').classList.remove('correct-flash'), 500);
-    el('battle-answer-input').value = '';
-  } else {
-    BS.wrongCount++;
-    BS.tookDamage = true;
-    animateEnemyAttack();
-    const dmg = 15 + Math.floor(Math.random() * 10);
-    damageHero(dmg);
-
-    shakeScreen();
-    el('battle-answer-input').classList.add('shake');
-    setTimeout(() => el('battle-answer-input').classList.remove('shake'), 450);
-
-    // Show explanation after wrong answer
-    setTimeout(() => showExplanation(p, 'battle', false), 500);
-    return;
-  }
-
-  // Check enemy dead
-  if (BS.enemyHp <= 0) {
-    enemyDefeated();
-  } else {
-    BS.currentIdx++;
-    setTimeout(showNextProblem, 300);
-  }
-  saveGame();
-}
-
-function damageEnemy(amount) {
-  BS.enemyHp = Math.max(0, BS.enemyHp - amount);
-  updateEnemyHpBar();
-  spawnDamageFloater(amount, false);
-
-  if (BS.isBoss) {
-    BS.bossHitsLeft--;
-    if (BS.bossHitsLeft <= 0 || BS.enemyHp <= 0) {
-      BS.enemyHp = 0;
-    }
-  }
-}
-
-function damageHero(amount) {
-  G.hp = Math.max(0, G.hp - amount);
-  updateHeroHpBar();
-  spawnDamageFloater(amount, true);
-  updateHUD();
-
-  if (G.hp <= 0) {
-    setTimeout(showGameOver, 600);
-  }
-}
-
-function enemyDefeated() {
-  G.gold += 10;
-  addXP(15);
-
-  if (BS.isBoss) {
-    checkAchievement('comeback_kid', () => G.hp < 20);
-    addXP(35); // bonus XP for boss
-    dungeonComplete();
-    return;
-  }
-
-  BS.enemyIdx++;
-  if (BS.enemyIdx >= ENEMIES_PER_DUNGEON) {
-    // All regular enemies done → spawn boss
-    spawnEnemy(true);
-    // Use harder problems for boss
-    BS.problems = shuffle(ALL_PROBLEMS.filter(p =>
-      BS.dungeon.subtopics.includes(p.subtopic) && p.difficulty >= 2
-    ));
-    if (BS.problems.length < 10) BS.problems = shuffle(ALL_PROBLEMS.filter(p => p.topic === BS.dungeon.topic));
-    BS.currentIdx = 0;
-    toast('⚠️ BOSS INCOMING!');
-    setTimeout(showNextProblem, 600);
-    return;
-  }
-
-  // Next regular enemy
-  spawnEnemy(false);
-  BS.currentIdx++;
-  setTimeout(showNextProblem, 400);
-  saveGame();
-}
-
-function dungeonComplete() {
-  const accuracy = BS.totalCount > 0 ? Math.round((BS.correctCount / BS.totalCount) * 100) : 0;
-  const xpEarned = 15 * BS.correctCount + 50 + (BS.tookDamage ? 0 : 30);
-  const goldEarned = 10 * (BS.enemyIdx + 1);
-
-  if (!G.dungeonsCompleted.includes(BS.dungeon.id)) {
-    G.dungeonsCompleted.push(BS.dungeon.id);
-  }
-
-  // Stars
-  let stars = 1;
-  if (accuracy >= 70) stars = 2;
-  if (!BS.tookDamage && accuracy === 100) stars = 3;
-  G.dungeonStars[BS.dungeon.id] = Math.max(G.dungeonStars[BS.dungeon.id] || 0, stars);
-
-  // Unlock next dungeon
-  unlockNextDungeon(BS.dungeon.id);
-
-  // Achievements
-  if (!BS.tookDamage) checkAchievement('flawless_1');
-  if (accuracy === 100) checkAchievement('perfect_run');
-  if (BS.hintsThisDungeon === 0) checkAchievement('no_hints');
-  if (BS.dungeon.topic === 'A') checkDecimalWizard();
-  if (BS.dungeon.id === 10) checkAchievement('grand_champion');
-
-  addXP(xpEarned);
-  G.gold += goldEarned;
-  saveGame();
-
-  // Show level clear screen
-  el('clear-dungeon-name').textContent = BS.dungeon.name;
-  el('clear-xp').textContent    = '+' + xpEarned;
-  el('clear-gold').textContent  = '+' + goldEarned;
-  el('clear-accuracy').textContent = accuracy + '%';
-
-  const bonusStat = el('clear-bonus-stat');
-  bonusStat.style.display = (!BS.tookDamage) ? '' : 'none';
-
-  spawnConfetti();
-  showScreen('levelclear');
-}
-
-function unlockNextDungeon(currentId) {
-  const idx = DUNGEON_DEFS.findIndex(d => d.id === currentId);
-  if (idx >= 0 && idx + 1 < DUNGEON_DEFS.length) {
-    const nextId = DUNGEON_DEFS[idx + 1].id;
-    if (!G.dungeonsUnlocked.includes(nextId)) {
-      G.dungeonsUnlocked.push(nextId);
-    }
-  }
-}
-
-// ═════════════════════════════════════════════════════════════
-// EXPLANATION SCREEN
-// ═════════════════════════════════════════════════════════════
-let explainCalledFrom = 'battle'; // tracks which screen to return to
-
-function showExplanation(problem, calledFrom, proactive) {
-  explainCalledFrom = calledFrom || 'battle';
-  const html = buildExplanation(problem);
-  el('explain-content').innerHTML = html;
-  el('explain-more-content').style.display = 'none';
-  el('explain-more-content').innerHTML = buildMoreExplanation(problem);
-
-  // Header changes based on whether student chose to learn vs got it wrong
-  el('explain-header').textContent = proactive
-    ? '📖 HERE\'S HOW TO SOLVE THIS'
-    : '❌ NOT QUITE — LET\'S WORK THROUGH IT';
-  el('explain-header').style.color = proactive ? 'var(--purple)' : 'var(--red)';
-
-  el('explain-retry-btn').textContent = proactive ? '✅ GOT IT — LET ME TRY NOW' : '✅ GOT IT — TRY AGAIN';
-
-  showScreen('explain');
-}
-
-function buildMoreExplanation(p) {
-  const analogies = {
-    A: `<p style="font-size:14px;color:var(--white);">
-      <strong>Think of it this way:</strong><br>
-      A fraction tells you how many pieces out of a whole.<br>
-      A decimal is the same thing written with a decimal point.<br><br>
-      🍕 If you have 3/4 of a pizza, you have 0.75 of a pizza.<br>
-      They mean <em>exactly</em> the same amount — just written differently!<br><br>
-      <strong>Rule:</strong> Divide the top (numerator) by the bottom (denominator).<br>
-      Always. Every time. No exceptions.
-    </p>`,
-    B: `<p style="font-size:14px;color:var(--white);">
-      <strong>Long division — the D-M-S-B dance:</strong><br>
-      <strong>D</strong>ivide → how many times does the divisor fit?<br>
-      <strong>M</strong>ultiply → divisor × that number<br>
-      <strong>S</strong>ubtract → take it away<br>
-      <strong>B</strong>ring down → bring the next digit<br><br>
-      Repeat until done. If you get a remainder and want a decimal,
-      add a decimal point and bring down a 0.<br><br>
-      ⚠️ Don't skip the 0 in the quotient when a digit doesn't divide evenly!
-    </p>`,
-    C: `<p style="font-size:14px;color:var(--white);">
-      <strong>Multiplication = repeated addition, done fast.</strong><br><br>
-      Break big numbers apart:<br>
-      23 × 14 = (20 + 3) × (10 + 4)<br>
-      = (20×10) + (20×4) + (3×10) + (3×4)<br>
-      = 200 + 80 + 30 + 12 = 322<br><br>
-      This is the <em>area model</em> — imagine a rectangle 23 wide × 14 tall.
-      The area is the answer!<br><br>
-      For decimals: ignore the point, multiply, then count decimal places.
-    </p>`,
-  };
-  return analogies[p.topic] || '';
-}
-
-// ═════════════════════════════════════════════════════════════
-// MINI-TEST
-// ═════════════════════════════════════════════════════════════
-function startMiniTest(dungeon) {
-  clearInterval(MT.timerInterval);
-  MT.dungeonId   = dungeon.id;
-  MT.current     = 0;
-  MT.correct     = 0;
-  MT.subtopicHits  = {};
-  MT.subtopicTotal = {};
-  MT.timeLeft    = 90;
-
-  // Pull problems from the mini-test's topic areas
-  const topics = dungeon.miniTestTopics || ["A1","B1","C1"];
-  let pool = [];
-  topics.forEach(st => {
-    const probs = getProblemsBySubtopic(st);
-    pool = pool.concat(probs);
-  });
-  pool = shuffle(pool).slice(0, 10);
-  while (pool.length < 10) pool = pool.concat(shuffle(pool));
-  pool = pool.slice(0, 10);
-  MT.questions = pool;
-
-  showScreen('minitest');
-  el('minitest-results').classList.add('hidden');
-  el('minitest-answer-row').style.display = '';
-
-  startMiniTestTimer();
-  showMiniTestQuestion();
-}
-
-function startMiniTestTimer() {
-  el('minitest-timer').textContent = formatTime(MT.timeLeft);
-  MT.timerInterval = setInterval(() => {
-    MT.timeLeft--;
-    el('minitest-timer').textContent = formatTime(MT.timeLeft);
-    el('minitest-timer').classList.toggle('urgent', MT.timeLeft <= 15);
-    if (MT.timeLeft <= 0) {
-      clearInterval(MT.timerInterval);
-      finishMiniTest();
-    }
-  }, 1000);
-}
-
-function showMiniTestQuestion() {
-  const q = MT.questions[MT.current];
-  if (!q) { finishMiniTest(); return; }
-
-  const pct = Math.round((MT.current / MT.questions.length) * 100);
-  el('minitest-progress').style.width = pct + '%';
-  el('minitest-progress-text').textContent = `${MT.current} / ${MT.questions.length}`;
-
-  renderQuestion(q, 'minitest-question', 'minitest-mc-choices', 'minitest-answer-row', 'minitest-answer-input');
-  el('minitest-feedback').textContent = '';
-}
-
-function submitMiniTestAnswer(userInput) {
-  const q = MT.questions[MT.current];
-  const correct = checkAnswer(q, userInput);
-
-  MT.subtopicTotal[q.subtopic] = (MT.subtopicTotal[q.subtopic] || 0) + 1;
-  if (correct) {
-    MT.correct++;
-    MT.subtopicHits[q.subtopic] = (MT.subtopicHits[q.subtopic] || 0) + 1;
-    el('minitest-feedback').textContent = '✅ Correct!';
-    el('minitest-feedback').style.color = 'var(--green)';
-    G.totalProblemsCorrect++;
-  } else {
-    el('minitest-feedback').textContent = `❌ Answer: ${q.answer}`;
-    el('minitest-feedback').style.color = 'var(--red)';
-  }
-  G.totalProblemsAttempted++;
-
-  setTimeout(() => {
-    MT.current++;
-    showMiniTestQuestion();
-  }, 700);
-}
-
-function finishMiniTest() {
-  clearInterval(MT.timerInterval);
-  const score = MT.correct;
-  const total = MT.questions.length;
-  const pct   = Math.round((score / total) * 100);
-  const passed = pct >= 60;
-
-  if (score === total) checkAchievement('mini_ace');
-  addXP(passed ? 50 + (score === total ? 50 : 0) : 10);
-  saveGame();
-
-  el('minitest-score-text').textContent = `${score} / ${total}`;
-  el('minitest-pass-fail').textContent  = passed
-    ? `✅ PASSED! (${pct}%) — Next zone unlocked!`
-    : `❌ FAILED (${pct}%) — Need 60% to continue. Try again!`;
-  el('minitest-pass-fail').style.color  = passed ? 'var(--green)' : 'var(--red)';
-
-  if (passed && !G.dungeonsCompleted.includes(MT.dungeonId)) {
-    G.dungeonsCompleted.push(MT.dungeonId);
-    unlockNextDungeon(MT.dungeonId);
-    saveGame();
-  }
-
-  // Breakdown
-  const bdEl = el('minitest-breakdown');
-  bdEl.innerHTML = '';
-  Object.keys(MT.subtopicTotal).forEach(st => {
-    const h = MT.subtopicHits[st] || 0;
-    const t = MT.subtopicTotal[st];
-    const p = Math.round((h / t) * 100);
-    bdEl.innerHTML += `
-      <div class="subtopic-row">
-        <div class="subtopic-label">${st}</div>
-        <div class="subtopic-bar-wrap"><div class="subtopic-bar-fill" style="width:${p}%"></div></div>
-        <div class="subtopic-pct">${p}%</div>
-      </div>`;
-  });
-
-  el('minitest-progress').style.width = '100%';
-  el('minitest-progress-text').textContent = `${total} / ${total}`;
-  el('minitest-results').classList.remove('hidden');
-  el('minitest-answer-row').style.display = 'none';
-  document.getElementById('minitest-mc-choices').classList.add('hidden');
-}
-
-// ═════════════════════════════════════════════════════════════
-// FREE DRILL
-// ═════════════════════════════════════════════════════════════
-function startDrill(topic) {
-  DR.topic   = topic;
-  DR.streak  = 0;
-  DR.current = getNextDrillProblem(topic);
-
-  el('drill-topic-badge').textContent = { A:"FRACTIONS", B:"DIVISION", C:"MULTIPLY" }[topic];
-  el('drill-next-btn').style.display  = 'none';
-  el('drill-feedback').textContent    = '';
-  el('drill-explain-panel').classList.add('hidden');
-  el('drill-explain-panel').innerHTML = '';
-  el('drill-streak').textContent      = 0;
-
-  renderQuestion(DR.current, 'drill-question', 'drill-mc-choices', 'drill-answer-row', 'drill-answer-input');
-  el('drill-answer-row').style.display = '';
-}
-
-function getNextDrillProblem(topic) {
-  if (topic === 'A') return generateFractionProblem();
-  if (topic === 'B') return generateDivisionProblem();
-  if (topic === 'C') return generateMultiplicationProblem();
-  return generateFractionProblem();
-}
-
-function submitDrillAnswer(userInput) {
-  const p = DR.current;
-  const correct = checkAnswer(p, userInput);
-
-  G.totalProblemsAttempted++;
-  if (correct) {
-    G.totalProblemsCorrect++;
-    DR.streak++;
-    addXP(5);
-    el('drill-feedback').textContent = '✅ Correct! +5 XP';
-    el('drill-feedback').style.color = 'var(--green)';
-    el('drill-explain-panel').classList.add('hidden');
-  } else {
-    DR.streak = 0;
-    el('drill-feedback').textContent = `❌ Answer: ${p.answer}`;
-    el('drill-feedback').style.color = 'var(--red)';
-    el('drill-explain-panel').classList.remove('hidden');
-    el('drill-explain-panel').innerHTML = buildExplanation(p);
-  }
-  el('drill-streak').textContent = DR.streak;
-  el('drill-next-btn').style.display = '';
-  saveGame();
-}
-
-// ═════════════════════════════════════════════════════════════
-// XP & LEVELING
-// ═════════════════════════════════════════════════════════════
-function addXP(amount) {
-  if (!G) return;
-  G.heroXP += amount;
-  while (G.heroLevel < 10 && G.heroXP >= G.heroMaxXP) {
-    G.heroXP -= G.heroMaxXP;
-    G.heroLevel++;
-    G.heroMaxXP = XP_THRESHOLDS[G.heroLevel] || 20000;
-    toast(`🎉 LEVEL UP! Now Level ${G.heroLevel}!`);
-    if (G.heroLevel >= 5)  checkAchievement('level_5');
-    if (G.heroLevel >= 10) checkAchievement('level_10');
-  }
-  if (G.gold >= 100) checkAchievement('gold_100');
-  updateHUD();
-}
-
-// ═════════════════════════════════════════════════════════════
-// ACHIEVEMENTS
-// ═════════════════════════════════════════════════════════════
-function checkAchievement(id, condition) {
-  if (!G) return;
-  if (G.achievements.includes(id)) return;
-  if (condition && !condition()) return;
-  G.achievements.push(id);
-  const def = ACHIEVEMENTS_DEF.find(a => a.id === id);
-  if (def) showAchievementPopup(def);
-  saveGame();
-}
-
-function checkDivisionMaster() {
-  const st = G.subtopicScores;
-  let total = 0;
-  ['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10'].forEach(s => {
-    total += (st[s] ? st[s].correct : 0);
-  });
-  if (total >= 50) checkAchievement('division_master');
-}
-
-function checkDecimalWizard() {
-  const aComplete = [1,2,3].every(id => G.dungeonsCompleted.includes(id));
-  if (aComplete) checkAchievement('decimal_wizard');
-}
-
-function checkSpeedAchievement() {
-  const now = Date.now();
-  // Keep only last 5 timestamps
-  BS.speedTracker = BS.speedTracker.filter(t => now - t < 30000).slice(-5);
-  if (BS.speedTracker.length >= 5) {
-    const span = now - BS.speedTracker[0];
-    if (span <= 30000) checkAchievement('speed_solver');
-  }
-}
-
-function showAchievementPopup(def) {
-  const popup = document.createElement('div');
-  popup.className = 'ach-popup';
-  popup.innerHTML = `
-    <div class="ach-popup-icon">${def.icon}</div>
-    <div class="ach-popup-text">
-      <div class="ach-popup-title">ACHIEVEMENT UNLOCKED</div>
-      <div class="ach-popup-name">${def.name}</div>
-    </div>`;
-  document.body.appendChild(popup);
-  setTimeout(() => popup.remove(), 4000);
-}
-
-function renderAchievementsScreen() {
-  const grid = el('ach-grid');
+// ── Achievements screen ────────────────────────────────────
+function renderAchScreen() {
+  showHTMLScreen('screen-achievements');
+  const grid = document.getElementById('ach-grid');
   grid.innerHTML = '';
-  ACHIEVEMENTS_DEF.forEach(def => {
+  ACH.forEach(def => {
     const unlocked = G.achievements.includes(def.id);
     const card = document.createElement('div');
-    card.className = `ach-card ${unlocked ? 'unlocked' : 'locked'}`;
+    card.className = `ach-card${unlocked?' unlocked':''}`;
     card.innerHTML = `
       <div class="ach-icon">${def.icon}</div>
       <div class="ach-name">${def.name}</div>
       <div class="ach-desc">${unlocked ? def.desc : '???'}</div>`;
     grid.appendChild(card);
   });
-  el('ach-count-text').textContent = `${G.achievements.length} / ${ACHIEVEMENTS_DEF.length} unlocked`;
+  document.getElementById('ach-count').textContent =
+    G.achievements.length + ' / ' + ACH.length + ' unlocked';
 }
 
-// ═════════════════════════════════════════════════════════════
-// SUBTOPIC TRACKING
-// ═════════════════════════════════════════════════════════════
-function recordSubtopicAttempt(subtopic, correct) {
-  if (!G.subtopicScores[subtopic]) G.subtopicScores[subtopic] = { correct:0, attempts:0 };
-  G.subtopicScores[subtopic].attempts++;
-  if (correct) G.subtopicScores[subtopic].correct++;
+// ── Title screen ───────────────────────────────────────────
+function renderTitleScreen() {
+  showHTMLScreen('screen-title');
+  const hasSave = G && (G.levelsCompleted.length > 0 || G.levelsUnlocked.length > 1);
+  document.getElementById('btn-continue').style.display = G ? '' : 'none';
+  document.getElementById('btn-start').style.display    = G ? 'none' : '';
+  if (G && G.streak.current >= 2) {
+    document.getElementById('streak-badge').classList.remove('hidden');
+    document.getElementById('streak-val').textContent = G.streak.current;
+  }
 }
 
-// ═════════════════════════════════════════════════════════════
-// UI HELPERS
-// ═════════════════════════════════════════════════════════════
-function renderQuestion(p, questionId, mcId, rowId, inputId) {
-  // Question text with fraction rendering
-  el(questionId).innerHTML = formatQuestionText(p.question);
+// ── INIT ───────────────────────────────────────────────────
+function init() {
+  bindAllButtons();
+  bindMobile();
 
-  const mcEl = el(mcId);
-  const rowEl = el(rowId);
-  const inputEl = el(inputId);
-
-  if (p.type === 'mc' && p.choices) {
-    mcEl.classList.remove('hidden');
-    rowEl.style.display = 'none';
-    mcEl.innerHTML = '';
-    p.choices.forEach(choice => {
-      const btn = document.createElement('button');
-      btn.className = 'mc-btn';
-      btn.textContent = choice;
-      btn.addEventListener('click', () => {
-        mcEl.querySelectorAll('.mc-btn').forEach(b => b.disabled = true);
-        const correct = checkAnswer(p, choice);
-        btn.classList.add(correct ? 'correct' : 'wrong');
-        if (!correct) {
-          // Highlight correct
-          mcEl.querySelectorAll('.mc-btn').forEach(b => {
-            if (checkAnswer(p, b.textContent)) b.classList.add('correct');
-          });
-        }
-        // Dispatch to appropriate handler after a tick
-        setTimeout(() => {
-          if (inputId === 'battle-answer-input') submitBattleAnswer(choice);
-          else if (inputId === 'diag-answer-input') submitDiagnosticAnswer(choice);
-          else if (inputId === 'minitest-answer-input') submitMiniTestAnswer(choice);
-          else if (inputId === 'drill-answer-input') submitDrillAnswer(choice);
-        }, 600);
-      });
-      mcEl.appendChild(btn);
-    });
+  const saved = loadSave();
+  if (saved) {
+    G = saved;
+    updateStreak();
+    writeSave();
+    renderTitleScreen();
   } else {
-    mcEl.classList.add('hidden');
-    rowEl.style.display = '';
-    inputEl.value = '';
-    inputEl.focus();
+    showHTMLScreen('screen-name');
   }
 }
 
-function formatQuestionText(text) {
-  // Replace "a/b" fractions with styled fraction spans (only pure digit/digit)
-  return text.replace(/(\d+)\s*\/\s*(\d+)/g, (_, n, d) =>
-    `<span class="frac-display"><span class="frac-num">${n}</span><span class="frac-den">${d}</span></span>`
-  );
-}
-
-function updateHeroHpBar() {
-  const pct = G.maxHp > 0 ? Math.max(0, Math.round((G.hp / G.maxHp) * 100)) : 0;
-  const fill = el('hero-hp-fill');
-  fill.style.width = pct + '%';
-  fill.className = `hp-fill ${pct > 50 ? 'high' : pct > 25 ? 'mid' : 'low'}`;
-  el('hero-hp-text').textContent = `${G.hp}/${G.maxHp}`;
-  el('hero-name-display').textContent = G.playerName || 'HERO';
-  updateHUD();
-}
-
-function updateEnemyHpBar() {
-  const pct = BS.enemyMaxHp > 0
-    ? Math.max(0, Math.round((BS.enemyHp / BS.enemyMaxHp) * 100))
-    : 0;
-  const fill = el('enemy-hp-fill');
-  fill.style.width = pct + '%';
-  fill.className = `hp-fill ${pct > 50 ? 'high' : pct > 25 ? 'mid' : 'low'}`;
-  el('enemy-hp-text').textContent = `${BS.enemyHp}/${BS.enemyMaxHp}`;
-}
-
-function updateBattleWave() {
-  if (!BS.isBoss) {
-    el('battle-wave').textContent = `Enemy ${BS.enemyIdx + 1} / ${ENEMIES_PER_DUNGEON}`;
-  }
-}
-
-function spawnDamageFloater(amount, isHero) {
-  const arena = el('battle-arena');
-  const f = document.createElement('div');
-  f.className = `damage-floater ${isHero ? 'hero-dmg' : 'enemy-dmg'}`;
-  f.textContent = (isHero ? '-' : '-') + amount + ' HP';
-  f.style.left = isHero ? '10%' : '60%';
-  f.style.top  = '30%';
-  arena.appendChild(f);
-  setTimeout(() => f.remove(), 1100);
-}
-
-function animateHeroAttack() {
-  const hero = document.getElementById('hero-sprite');
-  if (!hero) return;
-  hero.classList.add('hero-attack');
-  setTimeout(() => hero.classList.remove('hero-attack'), 400);
-}
-
-function animateEnemyAttack() {
-  const enemy = document.getElementById('enemy-sprite');
-  const hero  = document.getElementById('hero-sprite');
-  if (enemy) {
-    enemy.classList.add('enemy-attack');
-    setTimeout(() => enemy.classList.remove('enemy-attack'), 400);
-  }
-  if (hero) {
-    hero.classList.add('hero-flash');
-    setTimeout(() => hero.classList.remove('hero-flash'), 500);
-  }
-}
-
-function shakeScreen() {
-  const battle = document.getElementById('screen-battle');
-  if (!battle) return;
-  battle.classList.add('shake-screen');
-  setTimeout(() => battle.classList.remove('shake-screen'), 450);
-}
-
-function spawnConfetti() {
-  const wrap = el('confetti-wrap');
-  wrap.innerHTML = '';
-  const colors = ['#5b8dee','#e8a838','#44d479','#e84040','#9c6dd8','#f0d060'];
-  for (let i = 0; i < 60; i++) {
-    const piece = document.createElement('div');
-    piece.className = 'confetti-piece';
-    piece.style.cssText = `
-      left: ${Math.random() * 100}%;
-      background: ${colors[Math.floor(Math.random() * colors.length)]};
-      animation-duration: ${1.5 + Math.random() * 2}s;
-      animation-delay: ${Math.random() * 0.5}s;
-      width: ${6 + Math.random() * 8}px;
-      height: ${6 + Math.random() * 8}px;
-      border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
-    `;
-    wrap.appendChild(piece);
-  }
-  setTimeout(() => wrap.innerHTML = '', 4000);
-}
-
-function showGameOver() {
-  showScreen('gameover');
-}
-
-function toast(msg) {
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3100);
-}
-
-function el(id) { return document.getElementById(id); }
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function formatTime(secs) {
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function topicName(t) {
-  return { A:"Fractions & Decimals", B:"Long Division", C:"Multiplication" }[t] || t;
-}
-
-// ═════════════════════════════════════════════════════════════
-// BUTTON BINDINGS
-// ═════════════════════════════════════════════════════════════
+// ── Button bindings ────────────────────────────────────────
 function bindAllButtons() {
 
-  // ── Name screen ───────────────────────────────────────────
-  el('name-confirm-btn').addEventListener('click', () => {
-    const name = el('name-input').value.trim().toUpperCase() || 'HERO';
+  // Name
+  document.getElementById('btn-name-confirm').addEventListener('click', () => {
+    const name = (document.getElementById('name-input').value.trim().toUpperCase()) || 'HERO';
     G = defaultSave(name);
-    saveGame();
-    showScreen('title');
-    updateTitleScreen();
+    writeSave();
+    renderTitleScreen();
   });
-  el('name-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') el('name-confirm-btn').click();
+  document.getElementById('name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-name-confirm').click();
   });
 
-  // ── Title screen ──────────────────────────────────────────
-  el('continue-btn').addEventListener('click', () => {
-    if (!G) { showScreen('name'); return; }
-    if (!G.diagnosticDone) startDiagnostic();
-    else showMap();
+  // Title
+  document.getElementById('btn-start').addEventListener('click', () => {
+    if (!G) { showHTMLScreen('screen-name'); return; }
+    renderMapScreen();
   });
-  el('newgame-btn').addEventListener('click', () => {
+  document.getElementById('btn-continue').addEventListener('click', () => {
+    if (!G) { showHTMLScreen('screen-name'); return; }
+    renderMapScreen();
+  });
+  document.getElementById('btn-newgame').addEventListener('click', () => {
     if (confirm('Start a new game? All progress will be lost!')) {
       localStorage.removeItem(SAVE_KEY);
       G = null;
-      showScreen('name');
+      showHTMLScreen('screen-name');
     }
   });
-  el('achievements-btn').addEventListener('click', () => {
-    if (!G) return;
-    renderAchievementsScreen();
-    showScreen('achievements');
-  });
-  el('drill-btn').addEventListener('click', () => {
-    if (!G) { showScreen('name'); return; }
-    DR.streak = 0;
-    el('drill-answer-row').style.display = 'none';
-    el('drill-question').textContent = 'Press a topic button to start!';
-    showScreen('drill');
+  document.getElementById('btn-achievements').addEventListener('click', () => {
+    if (G) renderAchScreen();
   });
 
-  // ── Diagnostic ────────────────────────────────────────────
-  el('diag-submit-btn').addEventListener('click', () => {
-    const val = el('diag-answer-input').value;
-    if (!val.trim()) return;
-    submitDiagnosticAnswer(val.trim());
+  // Map
+  document.getElementById('btn-map-back').addEventListener('click', renderTitleScreen);
+
+  // Math modal
+  document.getElementById('btn-math-submit').addEventListener('click', () => {
+    submitMathAnswer(document.getElementById('math-answer-input').value.trim());
   });
-  el('diag-answer-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') el('diag-submit-btn').click();
+  document.getElementById('math-answer-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-math-submit').click();
   });
-  el('diag-skip-btn').addEventListener('click', () => {
-    submitDiagnosticAnswer('__skip__');
+  document.getElementById('btn-math-hint').addEventListener('click', () => {
+    if (!mathCtx.problem || (G.hintsLeft || 0) <= 0) { toast('No hints left!'); return; }
+    G.hintsLeft--;
+    document.getElementById('math-hint-box').textContent = '💡 ' + mathCtx.problem.hint;
+    document.getElementById('math-hint-box').style.display = 'block';
+    document.getElementById('math-hint-count').textContent = G.hintsLeft;
+    writeSave();
+  });
+  document.getElementById('btn-math-teach').addEventListener('click', openTeachModal);
+
+  // Explanation modal
+  document.getElementById('btn-explain-submit').addEventListener('click', submitExplainAnswer);
+  document.getElementById('explain-answer-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-explain-submit').click();
+  });
+  document.getElementById('btn-explain-back').addEventListener('click', () => {
+    document.getElementById('explain-modal').style.display = 'none';
+    document.getElementById('math-modal').style.display = 'flex';
   });
 
-  // ── Map ───────────────────────────────────────────────────
-  el('map-title-btn').addEventListener('click', () => showScreen('title'));
-
-  // ── Shop ──────────────────────────────────────────────────
-  el('buy-potion-btn').addEventListener('click', () => buyItem('potion', 30));
-  el('buy-hint-btn').addEventListener('click',   () => buyItem('hint', 20));
-  el('buy-skip-btn').addEventListener('click',   () => buyItem('skip', 50));
-  el('shop-continue-btn').addEventListener('click', () => {
-    if (BS.dungeon) startBattle(BS.dungeon);
-  });
-
-  // ── Battle ────────────────────────────────────────────────
-  el('battle-submit-btn').addEventListener('click', () => {
-    const val = el('battle-answer-input').value;
-    if (!val.trim()) return;
-    submitBattleAnswer(val.trim());
-  });
-  el('battle-answer-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') el('battle-submit-btn').click();
-  });
-
-  el('use-hint-btn').addEventListener('click', () => {
-    if (!BS.pendingProblem || G.spells.hint <= 0) return;
-    G.spells.hint--;
-    BS.hintsThisDungeon++;
-    el('battle-hint-box').textContent = '💡 ' + BS.pendingProblem.hint;
-    el('battle-hint-box').style.display = 'block';
-    el('hint-count').textContent = G.spells.hint;
-    updateHUD();
-    saveGame();
-  });
-
-  el('use-potion-btn').addEventListener('click', () => {
-    if (G.spells.potion <= 0) { toast('No potions!'); return; }
-    G.spells.potion--;
-    G.hp = Math.min(G.maxHp, G.hp + 50);
-    toast('🧪 +50 HP!');
-    updateHeroHpBar();
-    updateHUD();
-    saveGame();
-  });
-
-  el('use-teach-btn').addEventListener('click', () => {
-    if (!BS.pendingProblem) return;
-    showExplanation(BS.pendingProblem, 'battle', true);
-  });
-
-  el('use-skip-btn').addEventListener('click', () => {
-    if (G.spells.skip <= 0 || BS.skipsThisDungeon >= 1) {
-      toast('No skips left!'); return;
-    }
-    G.spells.skip--;
-    BS.skipsThisDungeon++;
-    toast('⚡ Problem skipped!');
-    BS.currentIdx++;
-    el('use-skip-btn').disabled = true;
-    el('skip-count').textContent = G.spells.skip;
-    saveGame();
-    showNextProblem();
-  });
-
-  // ── Explanation ───────────────────────────────────────────
-  el('explain-retry-btn').addEventListener('click', () => {
-    if (explainCalledFrom === 'diagnostic') {
-      showScreen('diagnostic');
-      el('diag-answer-input').value = '';
-      el('diag-answer-input').focus();
-    } else if (explainCalledFrom === 'minitest') {
-      showScreen('minitest');
-      el('minitest-answer-input').value = '';
-      el('minitest-answer-input').focus();
-      startMiniTestTimer(); // resume timer
+  // Level clear
+  document.getElementById('btn-next-level').addEventListener('click', () => {
+    document.getElementById('level-clear-overlay').style.display = 'none';
+    if (raf) cancelAnimationFrame(raf);
+    const nextId = currentLevelDef ? currentLevelDef.id + 1 : 1;
+    const nextDef = LEVEL_DEFS.find(d => d.id === nextId);
+    if (nextDef && G.levelsUnlocked.includes(nextDef.id)) {
+      enterLevel(nextDef);
     } else {
-      showScreen('battle');
-      if (BS.pendingProblem) renderBattleProblem(BS.pendingProblem);
-      el('battle-answer-input').value = '';
-      el('battle-answer-input').focus();
+      renderMapScreen();
     }
   });
-  el('explain-more-btn').addEventListener('click', () => {
-    const mc = el('explain-more-content');
-    mc.style.display = mc.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('btn-back-map').addEventListener('click', () => {
+    document.getElementById('level-clear-overlay').style.display = 'none';
+    if (raf) cancelAnimationFrame(raf);
+    renderMapScreen();
   });
 
-  // ── Diagnostic teach button ───────────────────────────────
-  el('diag-teach-btn').addEventListener('click', () => {
-    const q = DS.questions[DS.current];
-    if (q) showExplanation(q, 'diagnostic', true);
+  // Game over
+  document.getElementById('btn-retry-level').addEventListener('click', () => {
+    document.getElementById('gameover-overlay').style.display = 'none';
+    if (currentLevelDef) enterLevel(currentLevelDef);
+    else renderMapScreen();
+  });
+  document.getElementById('btn-go-map').addEventListener('click', () => {
+    document.getElementById('gameover-overlay').style.display = 'none';
+    if (raf) cancelAnimationFrame(raf);
+    renderMapScreen();
   });
 
-  // ── Mini-test teach button ────────────────────────────────
-  el('minitest-teach-btn').addEventListener('click', () => {
-    const q = MT.questions[MT.current];
-    if (q) {
-      clearInterval(MT.timerInterval); // pause timer while reading
-      showExplanation(q, 'minitest', true);
-    }
+  // Pause
+  document.getElementById('btn-resume').addEventListener('click', () => {
+    gameState = 'playing';
+    document.getElementById('pause-overlay').style.display = 'none';
+  });
+  document.getElementById('btn-pause-map').addEventListener('click', () => {
+    document.getElementById('pause-overlay').style.display = 'none';
+    if (raf) cancelAnimationFrame(raf);
+    renderMapScreen();
   });
 
-  // ── Level Clear ───────────────────────────────────────────
-  el('clear-continue-btn').addEventListener('click', () => {
-    // Find next unlocked dungeon
-    const nextIdx = DUNGEON_DEFS.findIndex(d => G.dungeonsUnlocked.includes(d.id) && !G.dungeonsCompleted.includes(d.id));
-    if (nextIdx >= 0) {
-      enterDungeon(DUNGEON_DEFS[nextIdx]);
-    } else {
-      showMap();
-    }
-  });
-  el('clear-map-btn').addEventListener('click', showMap);
-
-  // ── Mini-test ─────────────────────────────────────────────
-  el('minitest-submit-btn').addEventListener('click', () => {
-    const val = el('minitest-answer-input').value;
-    if (!val.trim()) return;
-    submitMiniTestAnswer(val.trim());
-    el('minitest-answer-input').value = '';
-  });
-  el('minitest-answer-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') el('minitest-submit-btn').click();
-  });
-  el('minitest-continue-btn').addEventListener('click', () => {
-    clearInterval(MT.timerInterval);
-    showMap();
-  });
-  el('minitest-retry-btn').addEventListener('click', () => {
-    const dungeon = DUNGEON_DEFS.find(d => d.id === MT.dungeonId);
-    if (dungeon) startMiniTest(dungeon);
-  });
-
-  // ── Game Over ─────────────────────────────────────────────
-  el('gameover-retry-btn').addEventListener('click', () => {
-    G.hp = G.maxHp; // Restore HP for retry
-    saveGame();
-    if (BS.dungeon) startBattle(BS.dungeon);
-    else showMap();
-  });
-  el('gameover-map-btn').addEventListener('click', () => {
-    G.hp = Math.max(50, G.hp); // Small heal
-    saveGame();
-    showMap();
-  });
-
-  // ── Achievements ──────────────────────────────────────────
-  el('ach-back-btn').addEventListener('click', () => showScreen('title'));
-
-  // ── Free Drill ────────────────────────────────────────────
-  el('drill-fractions-btn').addEventListener('click', () => startDrill('A'));
-  el('drill-division-btn').addEventListener('click',  () => startDrill('B'));
-  el('drill-multiply-btn').addEventListener('click',  () => startDrill('C'));
-  el('drill-submit-btn').addEventListener('click', () => {
-    const val = el('drill-answer-input').value;
-    if (!val.trim()) return;
-    submitDrillAnswer(val.trim());
-    el('drill-answer-input').value = '';
-  });
-  el('drill-answer-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') el('drill-submit-btn').click();
-  });
-  el('drill-next-btn').addEventListener('click', () => {
-    DR.current = getNextDrillProblem(DR.topic);
-    el('drill-next-btn').style.display = 'none';
-    el('drill-feedback').textContent = '';
-    el('drill-explain-panel').classList.add('hidden');
-    renderQuestion(DR.current, 'drill-question', 'drill-mc-choices', 'drill-answer-row', 'drill-answer-input');
-    el('drill-answer-row').style.display = '';
-  });
-  el('drill-back-btn').addEventListener('click', () => showScreen('title'));
+  // Achievements back
+  document.getElementById('btn-ach-back').addEventListener('click', renderTitleScreen);
 }
 
-// ═════════════════════════════════════════════════════════════
-// BOOT
-// ═════════════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', init);
+
 })();
