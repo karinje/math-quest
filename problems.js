@@ -1036,28 +1036,88 @@ function buildExplanation(problem, userAnswer) {
 
 function buildFractionExplanation(p) {
   const d = p.display;
+  const subtopic = p.subtopic;
   let html = `<div class="explain-block">`;
-  html += `<div class="explain-title">Converting ${d && d.whole ? d.whole + " and " : ""}${d ? d.num+"/"+d.den : "fraction"} to a decimal</div>`;
 
-  if (d && d.type === "fraction") {
-    const num = d.num, den = d.den;
+  // ── A6/A7/A8: non-display problems (comparison, decimal→fraction, edge cases) ──
+  if (!d || d.type !== "fraction") {
+    html += `<div class="explain-title">${p.question}</div>`;
+    html += buildGenericSteps(p);
+    html += `<div class="explain-answer">Answer: <strong>${p.answer}</strong></div>`;
+    if (p.commonMistake) html += `<div class="explain-mistake">⚠️ Common mistake: ${p.commonMistake}</div>`;
+    html += `</div>`;
+    return html;
+  }
 
-    // Fraction bar visual
-    html += `<div class="fraction-bar-wrap">`;
-    html += `<div class="fraction-bar-label">${num}/${den}</div>`;
-    html += `<div class="fraction-bar">`;
+  const num = d.num, den = d.den, whole = d.whole || 0;
+  const label = whole ? `${whole} and ${num}/${den}` : `${num}/${den}`;
+  html += `<div class="explain-title">Converting ${label} to a decimal</div>`;
+
+  // ── What does this fraction mean? ──
+  html += `<div class="explain-steps">`;
+  html += `<div class="step-intro">
+    <strong>What does ${label} mean?</strong><br>
+    The bottom number (${den}) tells us how many equal pieces the whole is cut into.<br>
+    The top number (${num}) tells us how many of those pieces we have.<br>
+    ${whole ? `The whole number ${whole} stays as-is — we only need to convert the fraction part.` : ""}
+    <br><br>
+    <strong>The rule:</strong> To turn any fraction into a decimal, divide the top by the bottom: <strong>${num} ÷ ${den}</strong>.
+  </div>`;
+
+  // ── Fraction bar (only for small denominators) ──
+  if (den <= 12) {
+    html += `<div class="step-block">
+      <div class="step-num">Picture it</div>
+      <div class="step-body">
+        Imagine a chocolate bar with <strong>${den}</strong> equal pieces.<br>
+        You have <strong>${num}</strong> of them shaded:<br>
+        <div class="fraction-bar" style="margin-top:8px;">`;
     for (let i = 0; i < den; i++) {
       html += `<div class="fraction-cell ${i < num ? "filled" : ""}"></div>`;
     }
-    html += `</div></div>`;
-
-    // Long division steps
-    const actualNum = d.whole ? d.whole * den + num : num;
-    const actualDen = den;
-    html += `<div class="explain-method">METHOD: Divide ${actualNum} ÷ ${actualDen} step by step</div>`;
-    html += buildLongDivisionSteps(actualNum, actualDen);
+    html += `</div></div></div>`;
   }
 
+  // ── Is it a repeating decimal? ──
+  const actualNum = whole * den + num;
+  const decimalVal = actualNum / den;
+  const decStr = String(decimalVal);
+  const isRepeating = subtopic === "A3" || (decStr.length > 8);
+
+  if (isRepeating) {
+    html += `<div class="step-block">
+      <div class="step-num">Step 1</div>
+      <div class="step-body">
+        Divide <strong>${actualNum} ÷ ${den}</strong>.<br>
+        Watch what happens — the remainder keeps coming back, so the decimal <strong>repeats forever</strong>.<br>
+        For example, 1 ÷ 3: 10 ÷ 3 = 3 remainder 1 → 10 ÷ 3 = 3 remainder 1 → it never ends.<br>
+        We write this with "..." to show it repeats: <strong>${p.answer}</strong>
+      </div>
+    </div>`;
+  } else {
+    // Walk through the actual division
+    html += `<div class="step-block">
+      <div class="step-num">Step 1</div>
+      <div class="step-body">
+        We divide <strong>${actualNum} ÷ ${den}</strong> using long division.<br>
+        Since ${actualNum} is smaller than ${den}${actualNum < den ? "" : " or equal"}, we${actualNum < den ? " write 0. first, then work with " + actualNum + "0" : " start dividing directly"}.<br>
+        Work through each digit — here are the steps:
+      </div>
+    </div>`;
+    html += buildLongDivisionSteps(actualNum, den);
+  }
+
+  if (whole) {
+    html += `<div class="step-block">
+      <div class="step-num">Final step</div>
+      <div class="step-body">
+        We found that ${num}/${den} = ${(num/den).toFixed(4).replace(/0+$/,"") || "0"}.<br>
+        Now add the whole number back: <strong>${whole} + ${(num/den).toFixed(4).replace(/0+$/,"")} = ${p.answer}</strong>.
+      </div>
+    </div>`;
+  }
+
+  html += `</div>`; // close explain-steps
   html += `<div class="explain-answer">Answer: <strong>${p.answer}</strong></div>`;
   if (p.commonMistake) html += `<div class="explain-mistake">⚠️ Common mistake: ${p.commonMistake}</div>`;
   html += `</div>`;
@@ -1091,47 +1151,262 @@ function buildDivisionExplanation(p) {
 function buildMultiplyExplanation(p) {
   const d = p.display;
   let html = `<div class="explain-block">`;
-  html += `<div class="explain-title">Multiplication: ${d ? d.a+" × "+d.b : p.question}</div>`;
 
-  if (d && d.type === "multiply" && !String(d.a).includes(".") && !String(d.b).includes(".")) {
-    const a = Number(d.a), b = Number(d.b);
-    // Partial products breakdown
-    const aTens = Math.floor(a / 10) * 10;
-    const aOnes = a % 10;
-    const bTens = Math.floor(b / 10) * 10;
-    const bOnes = b % 10;
+  // ── No display (word problem, estimation, partial products quiz) ──
+  if (!d || d.type !== "multiply") {
+    html += `<div class="explain-title">${p.question}</div>`;
+    html += buildGenericSteps(p);
+    html += `<div class="explain-answer">Answer: <strong>${p.answer}</strong></div>`;
+    if (p.commonMistake) html += `<div class="explain-mistake">⚠️ Common mistake: ${p.commonMistake}</div>`;
+    html += `</div>`;
+    return html;
+  }
 
-    if (b < 10) {
-      // Simple: a × single digit
-      html += `<div class="explain-method">Partial products:<br>`;
-      html += `(${aTens} × ${b}) + (${aOnes} × ${b})<br>`;
-      html += `= ${aTens * b} + ${aOnes * b}<br>`;
-      html += `= ${a * b}</div>`;
-    } else {
-      // Two-digit × two-digit area model
-      html += `<div class="explain-method">Break apart and multiply:<br>`;
-      html += `${a} × ${b} = ${a} × ${bTens} + ${a} × ${bOnes}<br>`;
-      html += `= ${a * bTens} + ${a * bOnes}<br>`;
-      html += `= ${a * b}</div>`;
-      // Area model grid
-      html += buildAreaModel(a, b);
-    }
-  } else if (d && (String(d.a).includes(".") || String(d.b).includes("."))) {
+  html += `<div class="explain-title">Multiplication: ${d.a} × ${d.b}</div>`;
+  html += `<div class="explain-steps">`;
+
+  const hasDecA = String(d.a).includes(".");
+  const hasDecB = String(d.b).includes(".");
+
+  if (hasDecA || hasDecB) {
+    // ── DECIMAL MULTIPLICATION ──────────────────────────────────────
     const strA = String(d.a), strB = String(d.b);
-    const decA = (strA.includes(".") ? strA.split(".")[1].length : 0);
-    const decB = (strB.includes(".") ? strB.split(".")[1].length : 0);
+    const decA = hasDecA ? strA.split(".")[1].length : 0;
+    const decB = hasDecB ? strB.split(".")[1].length : 0;
     const totalDec = decA + decB;
-    const intA = Math.round(d.a * Math.pow(10, decA));
-    const intB = Math.round(d.b * Math.pow(10, decB));
-    html += `<div class="explain-method">
-      Step 1: Ignore decimal points → ${intA} × ${intB} = ${intA * intB}<br>
-      Step 2: Count decimal places: ${decA} + ${decB} = ${totalDec} total<br>
-      Step 3: Put decimal ${totalDec} places from right → ${p.answer}
+    const intA = Math.round(Number(d.a) * Math.pow(10, decA));
+    const intB = Math.round(Number(d.b) * Math.pow(10, decB));
+    const rawProduct = intA * intB;
+
+    html += `<div class="step-intro">
+      When multiplying decimals, we use a 3-step trick:<br>
+      <strong>① Ignore the decimal points and multiply as whole numbers.</strong><br>
+      <strong>② Count the total decimal places in both numbers.</strong><br>
+      <strong>③ Put the decimal point back that many places from the right.</strong>
+    </div>`;
+
+    html += `<div class="step-block">
+      <div class="step-num">Step 1</div>
+      <div class="step-body">
+        Ignore decimal points: ${d.a} becomes <strong>${intA}</strong>, ${d.b} becomes <strong>${intB}</strong>.<br>
+        Now multiply: <strong>${intA} × ${intB} = ${rawProduct}</strong>.<br>
+        ${intA < 10 && intB < 10 ? "(That's just a times table fact!)" : buildMultiplyStepsText(intA, intB)}
+      </div>
+    </div>`;
+
+    html += `<div class="step-block">
+      <div class="step-num">Step 2</div>
+      <div class="step-body">
+        Count decimal places in the original numbers:<br>
+        • <strong>${d.a}</strong> has <strong>${decA}</strong> decimal place${decA !== 1 ? "s" : ""}
+          ${decA > 0 ? `(the digits after the dot: ${strA.split(".")[1]})` : "(no decimal point)"}<br>
+        • <strong>${d.b}</strong> has <strong>${decB}</strong> decimal place${decB !== 1 ? "s" : ""}
+          ${decB > 0 ? `(the digits after the dot: ${strB.split(".")[1]})` : "(no decimal point)"}<br>
+        Total decimal places: ${decA} + ${decB} = <strong>${totalDec}</strong>
+      </div>
+    </div>`;
+
+    html += `<div class="step-block">
+      <div class="step-num">Step 3</div>
+      <div class="step-body">
+        Take our product <strong>${rawProduct}</strong> and count <strong>${totalDec}</strong> place${totalDec !== 1 ? "s" : ""} from the right.<br>
+        ${rawProduct} → put decimal ${totalDec} from right → <strong>${p.answer}</strong><br>
+        <span class="step-note">Think of it this way: multiplying by 0.5 (half) makes things smaller, not bigger.
+        So if your answer looks too big, you may have forgotten the decimal point!</span>
+      </div>
+    </div>`;
+
+  } else {
+    const a = Number(d.a), b = Number(d.b);
+
+    // ── ZERO or ONE edge case ──────────────────────────────────────
+    if (a === 0 || b === 0) {
+      html += `<div class="step-intro">
+        Any number multiplied by <strong>zero</strong> is always <strong>zero</strong>.<br>
+        Why? Multiplication means "this many groups of that many things."<br>
+        Zero groups of anything = nothing at all. So ${a} × ${b} = <strong>0</strong>.
+      </div>`;
+    } else if (a === 1 || b === 1) {
+      const other = a === 1 ? b : a;
+      html += `<div class="step-intro">
+        Any number multiplied by <strong>1</strong> stays the same.<br>
+        Why? One group of ${other} things is just ${other} things.<br>
+        So ${a} × ${b} = <strong>${other}</strong>.
+      </div>`;
+    } else if (b < 10) {
+      // ── MULTI-DIGIT × SINGLE DIGIT ────────────────────────────────
+      html += buildMultiByOneDigit(a, b);
+    } else if (a < 10) {
+      html += buildMultiByOneDigit(b, a);
+    } else {
+      // ── MULTI-DIGIT × MULTI-DIGIT ─────────────────────────────────
+      html += buildMultiByMultiDigit(a, b);
+    }
+  }
+
+  html += `</div>`; // close explain-steps
+  html += `<div class="explain-answer">Answer: <strong>${p.answer}</strong></div>`;
+  if (p.commonMistake) html += `<div class="explain-mistake">⚠️ Common mistake: ${p.commonMistake}</div>`;
+  html += `</div>`;
+  return html;
+}
+
+function buildMultiByOneDigit(topNum, oneDigit) {
+  // Walk through standard algorithm right-to-left with carry narration
+  const digits = String(topNum).split("").reverse(); // ones first
+  const placeNames = ["ones","tens","hundreds","thousands"];
+  let html = "";
+  let carry = 0;
+  let resultDigits = [];
+
+  html += `<div class="step-intro">
+    We multiply <strong>${topNum} × ${oneDigit}</strong> one column at a time, right to left.<br>
+    If any column gives us a number ≥ 10, we "carry" the tens digit to the next column.
+  </div>`;
+
+  digits.forEach((dStr, i) => {
+    const d = parseInt(dStr);
+    const place = placeNames[i] || `position ${i+1}`;
+    const product = d * oneDigit + carry;
+    const writeDigit = product % 10;
+    const newCarry = Math.floor(product / 10);
+
+    let body = `Multiply the <strong>${place}</strong> digit: <strong>${d} × ${oneDigit}</strong> = ${d * oneDigit}.`;
+    if (carry > 0) body += ` Add the carry from last step: ${d * oneDigit} + ${carry} = <strong>${product}</strong>.`;
+    body += `<br>Write down <strong>${writeDigit}</strong>`;
+    if (newCarry > 0) {
+      body += ` and carry <strong>${newCarry}</strong> to the next column.`;
+    } else {
+      body += `.`;
+    }
+    carry = newCarry;
+    resultDigits.unshift(writeDigit);
+
+    html += `<div class="step-block">
+      <div class="step-num">Step ${i+1}</div>
+      <div class="step-body">${body}</div>
+    </div>`;
+  });
+
+  if (carry > 0) {
+    resultDigits.unshift(carry);
+    html += `<div class="step-block">
+      <div class="step-num">Final carry</div>
+      <div class="step-body">We still have a carry of <strong>${carry}</strong>. Write it at the front.</div>
     </div>`;
   }
 
-  html += `<div class="explain-answer">Answer: <strong>${p.answer}</strong></div>`;
-  if (p.commonMistake) html += `<div class="explain-mistake">⚠️ Common mistake: ${p.commonMistake}</div>`;
+  html += `<div class="step-result">Reading left to right: ${resultDigits.join("")} = <strong>${topNum * oneDigit}</strong></div>`;
+  return html;
+}
+
+function buildMultiByMultiDigit(a, b) {
+  // Two-pass: partial products with full narration
+  const bDigits = String(b).split("").reverse();
+  const placeValues = [1, 10, 100, 1000];
+  const placeNames = ["ones","tens","hundreds","thousands"];
+  let html = "";
+  let partials = [];
+
+  html += `<div class="step-intro">
+    We multiply <strong>${a} × ${b}</strong> using <strong>partial products</strong>.<br>
+    The idea: break ${b} into its place values, multiply each one by ${a}, then add them all up.<br>
+    ${b} = ${bDigits.map((d,i) => parseInt(d) * placeValues[i]).filter(v=>v>0).reverse().join(" + ")}
+  </div>`;
+
+  bDigits.forEach((dStr, i) => {
+    const digit = parseInt(dStr);
+    if (digit === 0) return;
+    const placeVal = placeValues[i];
+    const partial = a * digit * placeVal;
+    partials.push(partial);
+
+    html += `<div class="step-block">
+      <div class="step-num">Part ${partials.length}</div>
+      <div class="step-body">
+        Multiply by the <strong>${placeNames[i]}s digit</strong> of ${b}, which is <strong>${digit}</strong>.<br>
+        ${a} × ${digit} = ${a * digit}.<br>
+        But this digit is in the <strong>${placeNames[i]}s place</strong>, so it's really ${digit} × ${placeVal} = ${digit * placeVal}.<br>
+        So: ${a} × ${digit * placeVal} = <strong>${partial}</strong>.
+        ${i > 0 ? `<span class="step-note">Shortcut: write ${a * digit} then add ${i} zero${i>1?"s":""} to the right → ${partial}</span>` : ""}
+      </div>
+    </div>`;
+  });
+
+  html += `<div class="step-block">
+    <div class="step-num">Add them up</div>
+    <div class="step-body">
+      Add all partial products:<br>
+      ${partials.join(" + ")} = <strong>${a * b}</strong>
+    </div>
+  </div>`;
+
+  html += buildAreaModel(a, b);
+  return html;
+}
+
+function buildMultiplyStepsText(a, b) {
+  if (b < 10) return `(${a} × ${b}: multiply each digit of ${a} by ${b}, right to left.)`;
+  return `(Break it up: ${a} × ${Math.floor(b/10)*10} + ${a} × ${b%10} = ${a * Math.floor(b/10)*10} + ${a*(b%10)} = ${a*b})`;
+}
+
+// ── Generic step explainer for word problems / comparison / estimation ──
+function buildGenericSteps(p) {
+  let html = `<div class="explain-steps">`;
+  html += `<div class="step-intro">Let's work through this step by step.</div>`;
+
+  if (p.hint) {
+    html += `<div class="step-block">
+      <div class="step-num">Approach</div>
+      <div class="step-body">${p.hint}</div>
+    </div>`;
+  }
+
+  // Subtopic-specific elaboration
+  if (p.subtopic === "A7" || p.subtopic === "A8") {
+    html += `<div class="step-block">
+      <div class="step-num">Key idea</div>
+      <div class="step-body">
+        To compare a fraction and a decimal, <strong>convert the fraction to a decimal first</strong>
+        (divide top ÷ bottom), then compare the two decimal numbers.<br>
+        Decimals are easy to compare: just line up the decimal points and look at each digit left to right.
+      </div>
+    </div>`;
+  }
+  if (p.subtopic === "A6") {
+    html += `<div class="step-block">
+      <div class="step-num">Key idea</div>
+      <div class="step-body">
+        To convert a decimal to a fraction:<br>
+        • Count the decimal places (e.g., 0.75 has 2 decimal places)<br>
+        • Write it over a power of 10 (0.75 = 75/100)<br>
+        • Simplify: find the GCF of top and bottom and divide both by it<br>
+        (75/100 ÷ 25/25 = 3/4)
+      </div>
+    </div>`;
+  }
+  if (p.subtopic === "C8") {
+    html += `<div class="step-block">
+      <div class="step-num">Key idea</div>
+      <div class="step-body">
+        Estimation means rounding to a friendly number first, then multiplying.<br>
+        Round to the nearest 10: 48 → 50, 22 → 20.<br>
+        Then: 50 × 20 = 1000. Much easier than the exact answer, and close enough!
+      </div>
+    </div>`;
+  }
+  if (p.subtopic === "B10" || p.subtopic === "C10") {
+    html += `<div class="step-block">
+      <div class="step-num">Key idea</div>
+      <div class="step-body">
+        Read the problem carefully and identify:<br>
+        • What numbers are you working with?<br>
+        • Are you sharing equally (division) or finding a total (multiplication)?<br>
+        • Write out the equation, then solve step by step.
+      </div>
+    </div>`;
+  }
+
   html += `</div>`;
   return html;
 }
