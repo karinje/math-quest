@@ -276,6 +276,12 @@ h1,h2,h3,.pixel { font-family: var(--pixel); line-height: 1.8; }
 .ach-name { font-family: var(--pixel); font-size: 7px; }
 .ach-desc { font-size: 11px; color: var(--grey); }
 .ach-card:not(.unlocked) .ach-icon { filter: grayscale(1); opacity: .4; }
+.ach-card:not(.unlocked) .ach-name { color: var(--grey); }
+.ach-card:not(.unlocked) .ach-desc { color: var(--grey); font-style: italic; opacity: 0.8; }
+.ach-locked-label {
+  font-family: var(--pixel); font-size: 6px; color: var(--border);
+  margin-top: 4px; letter-spacing: 1px;
+}
 
 /* ── Toast ───────────────────────────────────────────────── */
 .toast {

@@ -751,6 +751,170 @@ const LEVEL_DEFS = [
     ], ['hp','hp','hint','shield','hint']),
     portalX: 3350,
   },
+  // ── Levels 10-15 ──────────────────────────────────────────
+  {
+    id:10, name:"Repeating Ridge", topic:"A",
+    theme:{ sky:['#0a0818','#14102a'], ground:'#2a1a4a', dirt:'#1a0a2a', accent:'#9060dd' },
+    bgCave:true,
+    subtopics:['A4','A5','A6','A7','A8','A9'],
+    enemyLabel:'🌀 Fraction Wraith',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:160, y:355, w:110, h:18},{x:330, y:295, w:100, h:18},{x:500, y:365, w:90, h:18},
+      {x:660, y:305, w:110, h:18},{x:840, y:255, w:100, h:18},{x:1020,y:335, w:120,h:18},
+      {x:1210,y:285, w:100, h:18},{x:1400,y:355, w:90, h:18},{x:1580,y:285, w:110,h:18},
+      {x:1770,y:245, w:100, h:18},{x:1960,y:315, w:90, h:18},{x:2150,y:265, w:110,h:18},
+      {x:2350,y:335, w:100, h:18},{x:2550,y:275, w:90, h:18},{x:2750,y:305, w:110,h:18},
+      {x:2950,y:255, w:100, h:18},
+    ],
+    enemies:[
+      {x:350,y:247,subtopic:'A4',type:'ghost',hits:1},{x:680,y:257,subtopic:'A5',type:'ghost',hits:1},
+      {x:860,y:207,subtopic:'A6',type:'ghost',hits:1},{x:1230,y:237,subtopic:'A7',type:'ghost',hits:1},
+      {x:1600,y:237,subtopic:'A8',type:'ghost',hits:1},{x:1790,y:197,subtopic:'A9',type:'wizard',hits:2},
+      {x:2170,y:217,subtopic:'A6',type:'wizard',hits:2},{x:2970,y:207,subtopic:'A7',type:'lich',hits:3},
+    ],
+    collectibles:genCoinsOnPlatforms([
+      {x:170,y:355,w:110},{x:340,y:295,w:100},{x:670,y:305,w:110},{x:850,y:255,w:100},
+      {x:1030,y:335,w:120},{x:1410,y:355,w:90},{x:1590,y:285,w:110},{x:1780,y:245,w:100},
+    ],['hint','hp','hint','shield']),
+    portalX:3100,
+  },
+  {
+    id:11, name:"Division Depths", topic:"B",
+    theme:{ sky:['#000510','#000a1e'], ground:'#0a1a3a', dirt:'#040e20', accent:'#2060aa' },
+    bgOcean:true,
+    subtopics:['B7','B8','B9','B10'],
+    enemyLabel:'⚓ Deep Diver',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:150, y:360, w:110, h:18},{x:320, y:300, w:100, h:18},{x:490, y:370, w:90, h:18},
+      {x:650, y:310, w:110, h:18},{x:830, y:260, w:100, h:18},{x:1010,y:340, w:120,h:18},
+      {x:1200,y:290, w:100, h:18},{x:1390,y:360, w:90, h:18},{x:1570,y:290, w:110,h:18},
+      {x:1760,y:250, w:100, h:18},{x:1950,y:320, w:90, h:18},{x:2140,y:270, w:110,h:18},
+      {x:2340,y:340, w:100, h:18},{x:2540,y:280, w:90, h:18},{x:2740,y:310, w:110,h:18},
+      {x:2940,y:260, w:100, h:18},
+    ],
+    enemies:[
+      {x:340,y:252,subtopic:'B7',type:'fish',hits:1},{x:670,y:262,subtopic:'B8',type:'fish',hits:1},
+      {x:850,y:212,subtopic:'B9',type:'fish',hits:1},{x:1220,y:242,subtopic:'B10',type:'fish',hits:1},
+      {x:1590,y:242,subtopic:'B7',type:'fish',hits:1},{x:1780,y:202,subtopic:'B9',type:'troll',hits:2},
+      {x:2160,y:222,subtopic:'B10',type:'troll',hits:2},{x:2960,y:212,subtopic:'B9',type:'sea_dragon',hits:3},
+    ],
+    collectibles:genCoinsOnPlatforms([
+      {x:160,y:360,w:110},{x:330,y:300,w:100},{x:660,y:310,w:110},{x:840,y:260,w:100},
+      {x:1020,y:340,w:120},{x:1400,y:360,w:90},{x:1580,y:290,w:110},{x:1770,y:250,w:100},
+    ],['hint','hp','hint','shield']),
+    portalX:3100,
+  },
+  {
+    id:12, name:"Multiply Mountain", topic:"C",
+    theme:{ sky:['#080a00','#141800'], ground:'#3a4010', dirt:'#202806', accent:'#aacc20' },
+    bgTrees:true,
+    subtopics:['C5','C6','C9','C10'],
+    enemyLabel:'🏔️ Mountain Brute',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:180, y:350, w:110, h:18},{x:360, y:290, w:100, h:18},{x:540, y:360, w:90, h:18},
+      {x:700, y:300, w:110, h:18},{x:880, y:250, w:100, h:18},{x:1060,y:330, w:120,h:18},
+      {x:1250,y:280, w:100, h:18},{x:1440,y:350, w:90, h:18},{x:1620,y:280, w:110,h:18},
+      {x:1810,y:240, w:100, h:18},{x:2000,y:310, w:110, h:18},{x:2190,y:260,w:100,h:18},
+      {x:2390,y:330, w:90, h:18},{x:2590,y:270, w:110, h:18},{x:2790,y:300,w:100,h:18},
+      {x:2990,y:250, w:110, h:18},
+    ],
+    enemies:[
+      {x:380,y:242,subtopic:'C5',type:'troll',hits:1},{x:720,y:252,subtopic:'C6',type:'troll',hits:1},
+      {x:900,y:202,subtopic:'C9',type:'troll',hits:1},{x:1270,y:232,subtopic:'C10',type:'troll',hits:1},
+      {x:1640,y:232,subtopic:'C5',type:'troll',hits:1},{x:1830,y:192,subtopic:'C9',type:'golem',hits:2},
+      {x:2210,y:212,subtopic:'C10',type:'golem',hits:2},{x:3010,y:202,subtopic:'C6',type:'dragon',hits:3},
+    ],
+    collectibles:genCoinsOnPlatforms([
+      {x:190,y:350,w:110},{x:370,y:290,w:100},{x:710,y:300,w:110},{x:890,y:250,w:100},
+      {x:1070,y:330,w:120},{x:1450,y:350,w:90},{x:1630,y:280,w:110},{x:1820,y:240,w:100},
+    ],['hint','hp','hint','shield']),
+    portalX:3100,
+  },
+  {
+    id:13, name:"Mixed Mayhem", topic:null,
+    theme:{ sky:['#0a0808','#180a0a'], ground:'#4a2010', dirt:'#2a1008', accent:'#cc6020' },
+    bgFinal:true,
+    subtopics:['A2','B2','C2','A4','B4','C4','A7','B7'],
+    enemyLabel:'🎭 Chaos Spawn',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:160, y:355, w:110, h:18},{x:330, y:295, w:100, h:18},{x:500, y:365, w:90, h:18},
+      {x:660, y:305, w:110, h:18},{x:840, y:255, w:100, h:18},{x:1020,y:335, w:120,h:18},
+      {x:1210,y:285, w:100, h:18},{x:1400,y:355, w:90, h:18},{x:1580,y:285, w:110,h:18},
+      {x:1770,y:245, w:100, h:18},{x:1960,y:315, w:90, h:18},{x:2150,y:265, w:110,h:18},
+      {x:2350,y:335, w:100, h:18},{x:2550,y:275, w:90, h:18},{x:2750,y:305, w:110,h:18},
+      {x:2950,y:255, w:100, h:18},
+    ],
+    enemies:[
+      {x:350,y:247,subtopic:'A2',type:'slime',hits:1},{x:680,y:257,subtopic:'B2',type:'skeleton',hits:1},
+      {x:860,y:207,subtopic:'C2',type:'frog',hits:1},{x:1230,y:237,subtopic:'A4',type:'bat',hits:1},
+      {x:1600,y:237,subtopic:'B4',type:'spider',hits:1},{x:1790,y:197,subtopic:'C4',type:'zombie',hits:2},
+      {x:2170,y:217,subtopic:'A7',type:'wizard',hits:2},{x:2970,y:207,subtopic:'B7',type:'lich',hits:3},
+    ],
+    collectibles:genCoinsOnPlatforms([
+      {x:170,y:355,w:110},{x:340,y:295,w:100},{x:670,y:305,w:110},{x:850,y:255,w:100},
+      {x:1030,y:335,w:120},{x:1410,y:355,w:90},{x:1590,y:285,w:110},{x:1780,y:245,w:100},
+    ],['hp','hint','shield','hint']),
+    portalX:3100,
+  },
+  {
+    id:14, name:"Champion's Trial", topic:null,
+    theme:{ sky:['#050010','#0a0020'], ground:'#2a0a5a', dirt:'#180040', accent:'#cc00ff' },
+    bgTower:true,
+    subtopics:['A3','A8','B5','B8','C7','C9'],
+    enemyLabel:'👹 Champion Guard',
+    platforms:[
+      {x:0,   y:440, w:3400, h:60},
+      {x:200, y:350, w:120, h:18},{x:400, y:285, w:110, h:18},{x:590, y:355, w:100, h:18},
+      {x:760, y:290, w:120, h:18},{x:960, y:240, w:100, h:18},{x:1140,y:325, w:130,h:18},
+      {x:1350,y:265, w:110, h:18},{x:1550,y:345, w:100, h:18},{x:1740,y:275, w:120,h:18},
+      {x:1950,y:235, w:110, h:18},{x:2150,y:315, w:100, h:18},{x:2350,y:260,w:120,h:18},
+      {x:2560,y:335, w:110, h:18},{x:2770,y:270, w:100, h:18},{x:2980,y:235,w:120,h:18},
+      {x:3180,y:305, w:110, h:18},
+    ],
+    enemies:[
+      {x:420,y:242,subtopic:'A3',type:'ghost',hits:1},{x:780,y:242,subtopic:'B5',type:'skeleton',hits:1},
+      {x:980,y:192,subtopic:'C7',type:'spider',hits:1},{x:1370,y:217,subtopic:'A8',type:'bat',hits:1},
+      {x:1760,y:227,subtopic:'B8',type:'frog',hits:1},{x:1970,y:187,subtopic:'C9',type:'wizard',hits:2},
+      {x:2370,y:212,subtopic:'A3',type:'troll',hits:2},{x:3000,y:187,subtopic:'B5',type:'golem',hits:3},
+    ],
+    collectibles:genCoinsOnPlatforms([
+      {x:210,y:350,w:120},{x:410,y:285,w:110},{x:770,y:290,w:120},{x:970,y:240,w:100},
+      {x:1150,y:325,w:130},{x:1560,y:345,w:100},{x:1750,y:275,w:120},{x:1960,y:235,w:110},
+    ],['hp','hint','hp','shield']),
+    portalX:3350,
+  },
+  {
+    id:15, name:"Ultimate Gauntlet", topic:null,
+    theme:{ sky:['#060000','#120000'], ground:'#5a0808', dirt:'#3a0404', accent:'#ff2020' },
+    bgFinal:true,
+    subtopics:['A1','A3','B1','B5','B8','C1','C4','C7','C9'],
+    enemyLabel:'💀 ULTIMATE BOSS',
+    platforms:[
+      {x:0,   y:440, w:3600, h:60},
+      {x:200, y:350, w:130, h:18},{x:420, y:285, w:120, h:18},{x:630, y:355, w:110, h:18},
+      {x:820, y:290, w:130, h:18},{x:1030,y:240, w:110, h:18},{x:1230,y:325, w:140,h:18},
+      {x:1460,y:265, w:120, h:18},{x:1680,y:345, w:110, h:18},{x:1890,y:275, w:130,h:18},
+      {x:2110,y:235, w:120, h:18},{x:2330,y:315, w:110, h:18},{x:2550,y:255,w:130,h:18},
+      {x:2780,y:330, w:120, h:18},{x:3010,y:265, w:110, h:18},{x:3240,y:230,w:130,h:18},
+      {x:3470,y:300, w:120, h:18},
+    ],
+    enemies:[
+      {x:440,y:242,subtopic:'A1',type:'slime',hits:1},{x:840,y:242,subtopic:'B1',type:'skeleton',hits:1},
+      {x:1050,y:192,subtopic:'C1',type:'frog',hits:1},{x:1480,y:217,subtopic:'A3',type:'ghost',hits:2},
+      {x:1910,y:227,subtopic:'B5',type:'zombie',hits:2},{x:2130,y:187,subtopic:'C4',type:'wizard',hits:2},
+      {x:2570,y:207,subtopic:'B8',type:'lich',hits:3},{x:3030,y:217,subtopic:'C7',type:'dragon',hits:3},
+      {x:3260,y:182,subtopic:'C9',type:'golem',hits:3},
+    ],
+    collectibles:genCoinsOnPlatforms([
+      {x:210,y:350,w:130},{x:430,y:285,w:120},{x:830,y:290,w:130},{x:1040,y:240,w:110},
+      {x:1240,y:325,w:140},{x:1690,y:345,w:110},{x:1900,y:275,w:130},{x:2120,y:235,w:120},
+    ],['hp','hp','hint','shield','hint','hp']),
+    portalX:3580,
+  },
 ];
 
 function genCoinsOnPlatforms(plats, powerupTypes) {
@@ -954,7 +1118,7 @@ function updatePlayer(dt) {
 
   // Jumping
   if (keys.up && P.onGround && !jumpConsumed) {
-    P.vy = -22;  // high jump — reaches all platforms
+    P.vy = -15;  // reaches all platforms without going off-screen
     jumpConsumed = true;
     spawnParticles(P.x + P.w/2, P.y + P.h, '#aaaaff', 6);
   }
@@ -1889,7 +2053,8 @@ function renderAchScreen() {
     card.innerHTML = `
       <div class="ach-icon">${def.icon}</div>
       <div class="ach-name">${def.name}</div>
-      <div class="ach-desc">${unlocked ? def.desc : '???'}</div>`;
+      <div class="ach-desc">${def.desc}</div>
+      ${!unlocked ? '<div class="ach-locked-label">🔒 Not yet unlocked</div>' : ''}`;
     grid.appendChild(card);
   });
   document.getElementById('ach-count').textContent =
